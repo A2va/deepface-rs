@@ -1,9 +1,10 @@
-use crate::detection::{Detector, FacialAreaRegion};
-use burn::tensor::backend::Backend;
-use burn::{backend::ndarray::NdArray, tensor::Tensor};
+use burn::tensor::Tensor;
 use image::DynamicImage;
 
-use super::{non_maximum_suppression, to_tensor, BoundingBox, DeepFaceBackend, Landmarks};
+use super::{
+    non_maximum_suppression, resize_to_divisor_multiple, to_tensor, BoundingBox, DeepFaceBackend,
+    Detector, FacialAreaRegion, Landmarks, ResizedDimensions,
+};
 
 mod centerface {
     include!(concat!(env!("OUT_DIR"), "/models/detection/centerface.rs"));
@@ -36,62 +37,48 @@ impl CenterFace {
         Self { model: model }
     }
 
-    fn transform(&self, width: u32, height: u32) -> (u32, u32, f32, f32) {
-        let width = width as f32;
-        let height = height as f32;
-
-        let new_height = f32::ceil(height / 32.0) * 32.0;
-        let new_width = f32::ceil(width / 32.0) * 32.0;
-
-        let scale_width = new_width / width as f32;
-        let scale_height = new_height / height as f32;
-
-        (
-            new_height as u32,
-            new_width as u32,
-            scale_height,
-            scale_width,
-        )
-    }
-
     fn postprocess(
         &self,
         heatmap: Tensor<DeepFaceBackend, 4>,
         landmark: Tensor<DeepFaceBackend, 4>,
         offset: Tensor<DeepFaceBackend, 4>,
         scale: Tensor<DeepFaceBackend, 4>,
-        transformed_size: (u32, u32, f32, f32),
-        threshold: f32,
+        sizes: ResizedDimensions,
+        confidence_threshold: f32,
+        nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
-        let (height, width, scale_h, scale_w) = transformed_size;
 
-        let (mut dets, mut lms) =
-            self.decode(heatmap, scale, offset, landmark, (height, width), threshold);
+        let (mut dets, mut lms) = self.decode(
+            heatmap,
+            scale,
+            offset,
+            landmark,
+            sizes,
+            confidence_threshold,
+            nms_threshold,
+        );
 
-        if !dets.is_empty() {
-            // Scale dets
-            dets = dets
-                .into_iter()
-                .map(|mut bbbox| {
-                    bbbox.xmin /= scale_w;
-                    bbbox.xmax /= scale_w;
-                    bbbox.ymin /= scale_h;
-                    bbbox.ymax /= scale_h;
-                    bbbox
-                })
-                .collect::<Vec<BoundingBox>>();
+        dets = dets
+            .into_iter()
+            .map(|mut bbbox| {
+                bbbox.xmin /= sizes.width_scale;
+                bbbox.xmax /= sizes.width_scale;
+                bbbox.ymin /= sizes.height_scale;
+                bbbox.ymax /= sizes.height_scale;
+                bbbox
+            })
+            .collect();
 
-            // Scale landmarks
-            lms = lms
-                .into_iter()
-                .map(|mut landmark| {
-                    for i in 0..5 {
-                        landmark[i] = (landmark[i].0 / scale_w, landmark[i].1 / scale_h)
-                    }
-                    landmark
-                })
-                .collect::<Vec<Landmarks>>();
-        }
+        // Scale landmarks
+        lms = lms
+            .into_iter()
+            .map(|mut landmark| {
+                for i in 0..5 {
+                    landmark[i] = (landmark[i].0 / sizes.width_scale, landmark[i].1 / sizes.height_scale)
+                }
+                landmark
+            })
+            .collect();
 
         (dets, lms)
     }
@@ -102,8 +89,9 @@ impl CenterFace {
         scale: Tensor<DeepFaceBackend, 4>,
         offset: Tensor<DeepFaceBackend, 4>,
         landmark: Tensor<DeepFaceBackend, 4>,
-        size: (u32, u32),
-        threshold: f32,
+        sizes: ResizedDimensions,
+        confidence_threshold: f32,
+        nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         // np.squeeze remove all dims that have a size of 1, but it will not work with burn
         // since I know only the dim 1 of the heapmap is 1 I will use squeeze on the dim 1
@@ -133,7 +121,7 @@ impl CenterFace {
             .slice([0..1, 1..2])
             .reshape([offset_dim2, offset_dim3]);
 
-        let t = heatmap.clone().greater_elem(threshold).nonzero();
+        let t = heatmap.clone().greater_elem(confidence_threshold).nonzero();
         let c0: Vec<u32> = t[0]
             .clone()
             .into_data()
@@ -176,11 +164,11 @@ impl CenterFace {
                 let mut x1 = f32::max(0.0, (ci1 as f32 + o1.into_scalar() + 0.5) * 4.0 - s1 / 2.0);
                 let mut y1 = f32::max(0.0, (ci0 as f32 + o0.into_scalar() + 0.5) * 4.0 - s0 / 2.0);
 
-                x1 = f32::min(x1, size.1 as f32);
-                y1 = f32::min(y1, size.0 as f32);
+                x1 = f32::min(x1, sizes.width as f32);
+                y1 = f32::min(y1, sizes.height as f32);
 
-                let x2 = f32::min(x1 + s1, size.1 as f32);
-                let y2 = f32::min(y1 + s0, size.0 as f32);
+                let x2 = f32::min(x1 + s1, sizes.width as f32);
+                let y2 = f32::min(y1 + s0, sizes.height as f32);
 
                 boxes.push(BoundingBox {
                     xmin: x1,
@@ -202,35 +190,42 @@ impl CenterFace {
                 }
                 lms.push(lm);
             }
-            non_maximum_suppression(&mut boxes, &mut lms, 0.3);
+            non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
         }
         (boxes, lms)
     }
 }
 
 impl Detector for CenterFace {
-    fn detect(&self, input: &DynamicImage) -> Vec<FacialAreaRegion> {
-        let device = <DeepFaceBackend as burn::tensor::backend::Backend>::Device::default();
-        let threshold = 0.7;
+    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion> {
+        let nms_threshold = 0.3;
+        let device = Default::default();
 
         // Resize the input image and conver it to a float vector
-        let sizes = self.transform(input.width(), input.height());
+        let sizes = resize_to_divisor_multiple(input.width(), input.height(), 32, None);
         let resized = input
-            .resize_exact(sizes.1, sizes.0, image::imageops::FilterType::Lanczos3)
+            .resize_exact(sizes.width, sizes.height, image::imageops::FilterType::Lanczos3)
             .to_rgb8();
 
-        let device = Default::default();
         // Create tensor from image data
         let x = to_tensor(
             resized.into_raw(),
-            [sizes.0 as usize, sizes.1 as usize, 3],
+            [sizes.height as usize, sizes.width as usize, 3],
             &device,
         )
         .unsqueeze::<4>(); // [B, C, H, W]
 
         let (heatmap, scale, offset, lms) = self.model.forward(x);
 
-        let (detections, lms) = self.postprocess(heatmap, lms, offset, scale, sizes, threshold);
+        let (detections, lms) = self.postprocess(
+            heatmap,
+            lms,
+            offset,
+            scale,
+            sizes,
+            confidence_threshold,
+            nms_threshold,
+        );
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
@@ -278,7 +273,7 @@ mod tests {
         let model = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img);
+        let results = model.detect(&img, 0.8);
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }

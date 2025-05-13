@@ -5,7 +5,7 @@ pub mod yunet;
 pub use crate::detection::yunet::Yunet;
 
 pub trait Detector {
-    fn detect(&self, input: &DynamicImage) -> Vec<FacialAreaRegion>;
+    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion>;
 }
 
 use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
@@ -26,7 +26,6 @@ pub struct FacialAreaRegion {
 
 pub struct DetectedFace {
     // TODO Explore SubImage for the DetectedFace, also what is confidence if it's present in FacialAreaRegion
-    i: SubImage<DynamicImage>,
     img: DynamicImage,
     facial_area: FacialAreaRegion,
     confidence: f32,
@@ -40,49 +39,60 @@ use burn::{
 
 type DeepFaceBackend = NdArray;
 
-/// Resizes dimensions to be multiples of a specified divisor.
-///
-/// This function takes input width and height dimensions and calculates new dimensions
-/// that are multiples of the specified divisor (typically 32 for many ML models).
-/// It also returns the scaling factors needed to convert between original and new dimensions.
+/// Represents resized dimensions and scale factors.
+#[derive(Debug, Clone, Copy)]
+struct ResizedDimensions {
+    height: u32,
+    width: u32,
+    height_scale: f32,
+    width_scale: f32,
+}
+
+/// Resizes dimensions to multiples of a divisor while preserving aspect ratio.
 ///
 /// # Arguments
 ///
-/// * `width` - The original width
-/// * `height` - The original height
-/// * `divisor` - The value that the new dimensions should be multiples of
+/// * `width` - Original width
+/// * `height` - Original height
+/// * `divisor` - Value that new dimensions should be multiples of (typically 32)
+/// * `max_dimension` - Optional maximum size for either dimension
 ///
 /// # Returns
 ///
-/// A tuple containing:
-/// * `new_height` - The adjusted height (multiple of divisor)
-/// * `new_width` - The adjusted width (multiple of divisor)
-/// * `scale_height` - The scaling factor for height (new_height / original_height)
-/// * `scale_width` - The scaling factor for width (new_width / original_width)
-///
-/// Note: Height is returned before width to match the convention used in many ML models.
-fn resize_to_multiple_of_divisor(
-    width: u32,
-    height: u32,
+/// (new_height, new_width, height_scale, width_scale)
+/// Note: Height is returned first to match ML model conventions.
+/// Adjusts dimensions to nearest multiples of `divisor` while preserving aspect ratio.
+/// Returns (adjusted_height, adjusted_width, height_scale, width_scale)
+fn resize_to_divisor_multiple(
+    original_width: u32,
+    original_height: u32,
     divisor: u32,
-    max_size: Option<u32>,
-) -> (u32, u32, f32, f32) {
-    let mut new_width = width as f32;
-    let mut new_height = height as f32;
+    max_dimension: Option<u32>,
+) -> ResizedDimensions {
+    let mut scaled_width = original_width as f32;
+    let mut scaled_height = original_height as f32;
 
-    let new_height = f32::ceil(height / divisor as f32) * divisor as f32;
-    let new_width = f32::ceil(width / divisor as f32) * divisor as f32;
+    // Apply max dimension constraint
+    if let Some(max) = max_dimension {
+        if original_height > max || original_width > max {
+            let scale_ratio = max as f32 / scaled_height.max(scaled_width);
+            scaled_width *= scale_ratio;
+            scaled_height *= scale_ratio;
+        }
+    }
 
-    let scale_width = new_width / width as f32;
-    let scale_height = new_height / height as f32;
-    // Return the height first, because in ml models,
-    // the height is often in front of the width.
-    (
-        new_height as u32,
-        new_width as u32,
-        scale_height,
-        scale_width,
-    )
+    let adjusted_height = f32::ceil(scaled_height / divisor as f32) * divisor as f32;
+    let adjusted_width = f32::ceil(scaled_width / divisor as f32) * divisor as f32;
+
+    let width_scale = adjusted_width / original_width as f32;
+    let height_scale = adjusted_height / original_height as f32;
+
+    ResizedDimensions {
+        width: adjusted_width as u32,
+        height: adjusted_height as u32,
+        height_scale: height_scale,
+        width_scale,
+    }
 }
 
 /// Converts a vector of data into a 3D tensor with optional permutation.

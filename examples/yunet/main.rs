@@ -27,9 +27,9 @@ fn draw_rect(
 fn main() {
     let model = Yunet::new();
 
-    let img = image::open("images.jpg").unwrap();
+    let img = image::open("dataset/one_face.jpg").unwrap();
 
-    let results  = model.detect(&img);
+    let results  = model.detect(&img,0.8);
 
     let mut img = img.to_rgb8();
     let result = results.first().unwrap();
@@ -42,8 +42,38 @@ fn main() {
     println!("x,y: {},{}", x, y);
     println!("w,h: {},{}", w, h);
 
-    println!("left_eye: {:?}", result.left_eye.unwrap_or((0, 0)));
-
     draw_rect(&mut img, x as u32, x + w, y, y + h, &[0, 255, 0]);
+
+    if let Some(left_eye) = result.left_eye {
+        println!("left_eye: {:?}", left_eye);
+        let pixel = img.get_pixel_mut(left_eye.0, left_eye.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+    if let Some(right_eye) = result.right_eye {
+        println!("right_eye: {:?}", right_eye);
+        let pixel = img.get_pixel_mut(right_eye.0, right_eye.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+    if let Some(nose) = result.nose {
+        println!("nose: {:?}", nose);
+        let pixel = img.get_pixel_mut(nose.0, nose.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+    if let Some(mouth_left) = result.mouth_left {
+        println!("mouth_left: {:?}", mouth_left);
+        let pixel = img.get_pixel_mut(mouth_left.0, mouth_left.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+    if let Some(mouth_right) = result.mouth_right {
+        println!("mouth_right: {:?}", mouth_right);
+        let pixel = img.get_pixel_mut(mouth_right.0, mouth_right.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+
     img.save("output_yunet.jpg").unwrap();
 }

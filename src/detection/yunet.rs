@@ -1,13 +1,11 @@
-use std::ops::Bound;
-
-use burn::{backend::ndarray::NdArray, tensor::Tensor};
+use burn::tensor::Tensor;
 use image::DynamicImage;
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression, resize_to_multiple_of_divisor, to_tensor, BoundingBox, Landmarks,
+    non_maximum_suppression, resize_to_divisor_multiple, to_tensor, BoundingBox, DeepFaceBackend,
+    Detector, FacialAreaRegion, Landmarks, ResizedDimensions,
 };
-use super::{DeepFaceBackend, Detector, FacialAreaRegion};
 
 mod yunet {
     include!(concat!(env!("OUT_DIR"), "/models/detection/yunet.rs"));
@@ -54,49 +52,48 @@ impl Yunet {
     fn postprocess(
         &self,
         outputs: Vec<Tensor<DeepFaceBackend, 3>>,
-        sizes: (u32, u32, f32, f32),
+        sizes: ResizedDimensions,
+        confidence_threshold: f32,
+        nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<[(f32, f32); 5]>) {
-        let (mut dets, mut lms) = self.decode(outputs, sizes);
+        let (mut dets, mut lms) = self.decode(outputs, sizes, confidence_threshold, nms_threshold);
 
-        let (height, width, scale_h, scale_w) = sizes;
+        dets = dets
+            .into_iter()
+            .map(|mut bbbox| {
+                bbbox.xmin /= sizes.width_scale;
+                bbbox.xmax /= sizes.width_scale;
+                bbbox.ymin /= sizes.height_scale;
+                bbbox.ymax /= sizes.height_scale;
+                bbbox
+            })
+            .collect();
 
-        if !dets.is_empty() {
-            dets = dets
-                .into_iter()
-                .map(|mut bbbox| {
-                    bbbox.xmin /= scale_w;
-                    bbbox.xmax /= scale_w;
-                    bbbox.ymin /= scale_h;
-                    bbbox.ymax /= scale_h;
-                    bbbox
-                })
-                .collect::<Vec<BoundingBox>>();
+        // Scale landmarks
+        lms = lms
+            .into_iter()
+            .map(|mut landmark| {
+                for i in 0..5 {
+                    landmark[i] = (landmark[i].0 / sizes.width_scale, landmark[i].1 / sizes.height_scale)
+                }
+                landmark
+            })
+            .collect();
 
-            // Scale landmarks
-            lms = lms
-                .into_iter()
-                .map(|mut landmark| {
-                    for i in 0..5 {
-                        landmark[i] = (landmark[i].0 / scale_w, landmark[i].1 / scale_h)
-                    }
-                    landmark
-                })
-                .collect::<Vec<Landmarks>>();
-        }
         (dets, lms)
     }
 
     fn decode(
         &self,
         outputs: Vec<Tensor<DeepFaceBackend, 3>>,
-        sizes: (u32, u32, f32, f32),
+        sizes: ResizedDimensions,
+        confidence_threshold: f32,
+        nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         let strides = [8, 16, 32];
 
         let mut boxes = Vec::new();
         let mut lms = Vec::new();
-
-        let score_threshold = 0.5;
 
         for (i, stride) in strides.iter().enumerate() {
             let cls = &outputs[i];
@@ -104,8 +101,8 @@ impl Yunet {
             let bbox = &outputs[i + strides.len() * 2];
             let kkps = &outputs[i + strides.len() * 3];
 
-            let rows: usize = (sizes.0 as usize / stride) as usize;
-            let cols = (sizes.1 as usize / stride) as usize;
+            let rows: usize = (sizes.height as usize / stride) as usize;
+            let cols = (sizes.width as usize / stride) as usize;
 
             for row in 0..rows {
                 for col in 0..cols {
@@ -119,7 +116,7 @@ impl Yunet {
 
                     let score = f32::sqrt(cls_score * obj_score);
                     // Check if the score meets the threshold
-                    if score < score_threshold {
+                    if score < confidence_threshold {
                         continue;
                     }
 
@@ -163,32 +160,34 @@ impl Yunet {
         }
 
         // TODO Let user configure nms threshold
-        non_maximum_suppression(&mut boxes, &mut lms, 0.3);
+        non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
         (boxes, lms)
     }
 }
 
 impl Detector for Yunet {
-    fn detect(&self, input: &DynamicImage) -> Vec<FacialAreaRegion> {
-        let sizes = resize_to_multiple_of_divisor(input.width(), input.height(), 32, Some(640));
+    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion> {
+        let nms_threshold = 0.3;
+        let device = Default::default();
+
+        let sizes = resize_to_divisor_multiple(input.width(), input.height(), 32, Some(640));
         let resized = input
-            .resize_exact(sizes.1, sizes.0, image::imageops::FilterType::Lanczos3)
+            .resize_exact(sizes.width, sizes.height, image::imageops::FilterType::Lanczos3)
             .to_rgb8();
 
-        let (width, height) = (sizes.1, sizes.0);
 
-        let device = Default::default();
         // Create tensor from image data
         let x = to_tensor(
             resized.into_raw(),
-            [height as usize, width as usize, 3],
+            [sizes.height as usize, sizes.width as usize, 3],
             &device,
         )
         .unsqueeze::<4>(); // [B, C, H, W]
 
         let outputs = self.model.forward(x).to_vec();
 
-        let (detections, lms) = self.postprocess(outputs, sizes);
+        let (detections, lms) =
+            self.postprocess(outputs, sizes, confidence_threshold, nms_threshold);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
@@ -217,7 +216,7 @@ impl Detector for Yunet {
                 nose: Some(nose),
                 mouth_right: Some(right_mouth),
                 mouth_left: Some(left_mouth),
-                confidence: Some(confidence)
+                confidence: Some(confidence),
             };
             results.push(facial_area);
         }
@@ -237,7 +236,7 @@ mod tests {
         let model = Yunet::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img);
+        let results = model.detect(&img, 0.8);
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }
