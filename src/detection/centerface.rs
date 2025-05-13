@@ -3,7 +3,7 @@ use burn::tensor::backend::Backend;
 use burn::{backend::ndarray::NdArray, tensor::Tensor};
 use image::DynamicImage;
 
-use super::{to_tensor, DeepFaceBackend};
+use super::{non_maximum_suppression, to_tensor, BoundingBox, DeepFaceBackend, Landmarks};
 
 mod centerface {
     include!(concat!(env!("OUT_DIR"), "/models/detection/centerface.rs"));
@@ -26,7 +26,7 @@ mod centerface {
 /// }
 /// ```
 pub struct CenterFace {
-    model: centerface::Model<NdArray>,
+    model: centerface::Model<DeepFaceBackend>,
 }
 
 impl CenterFace {
@@ -62,39 +62,38 @@ impl CenterFace {
         scale: Tensor<DeepFaceBackend, 4>,
         transformed_size: (u32, u32, f32, f32),
         threshold: f32,
-    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[f32; 10]>) {
+    ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         let (height, width, scale_h, scale_w) = transformed_size;
-        let scale_h = scale_h as f32;
-        let scale_w = scale_w as f32;
 
-        let (mut dets, scores, mut lms) =
+        let (mut dets, mut lms) =
             self.decode(heatmap, scale, offset, landmark, (height, width), threshold);
 
         if !dets.is_empty() {
             // Scale dets
             dets = dets
                 .into_iter()
-                .map(|[x1, y1, x2, y2]| [x1 / scale_w, y1 / scale_h, x2 / scale_w, y2 / scale_h])
-                .collect::<Vec<[f32; 4]>>();
+                .map(|mut bbbox| {
+                    bbbox.xmin /= scale_w;
+                    bbbox.xmax /= scale_w;
+                    bbbox.ymin /= scale_h;
+                    bbbox.ymax /= scale_h;
+                    bbbox
+                })
+                .collect::<Vec<BoundingBox>>();
 
             // Scale landmarks
             lms = lms
                 .into_iter()
-                .map(|landmark| {
-                    let mut scaled_landmark = [0.0; 10];
-                    for i in 0..10 {
-                        scaled_landmark[i] = if i % 2 == 0 {
-                            landmark[i] / scale_w
-                        } else {
-                            landmark[i] / scale_h
-                        };
+                .map(|mut landmark| {
+                    for i in 0..5 {
+                        landmark[i] = (landmark[i].0 / scale_w, landmark[i].1 / scale_h)
                     }
-                    scaled_landmark
+                    landmark
                 })
-                .collect::<Vec<[f32; 10]>>();
+                .collect::<Vec<Landmarks>>();
         }
 
-        (dets, scores, lms)
+        (dets, lms)
     }
 
     fn decode(
@@ -105,7 +104,7 @@ impl CenterFace {
         landmark: Tensor<DeepFaceBackend, 4>,
         size: (u32, u32),
         threshold: f32,
-    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[f32; 10]>) {
+    ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         // np.squeeze remove all dims that have a size of 1, but it will not work with burn
         // since I know only the dim 1 of the heapmap is 1 I will use squeeze on the dim 1
         let heatmap = heatmap.squeeze_dims::<2>(&[0, 1]);
@@ -149,8 +148,7 @@ impl CenterFace {
             .unwrap();
 
         let mut boxes = Vec::new();
-        let mut scores = Vec::new();
-        let mut lms: Vec<[f32; 10]> = Vec::new();
+        let mut lms = Vec::new();
 
         if !c0.is_empty() {
             for i in 0..c0.len() {
@@ -173,7 +171,7 @@ impl CenterFace {
                 let o0 = offset0.clone().slice([ci0, ci1]);
                 let o1 = offset1.clone().slice([ci0, ci1]);
 
-                let s = heatmap.clone().slice([ci0, ci1]);
+                let score = heatmap.clone().slice([ci0, ci1]);
 
                 let mut x1 = f32::max(0.0, (ci1 as f32 + o1.into_scalar() + 0.5) * 4.0 - s1 / 2.0);
                 let mut y1 = f32::max(0.0, (ci0 as f32 + o0.into_scalar() + 0.5) * 4.0 - s0 / 2.0);
@@ -184,10 +182,15 @@ impl CenterFace {
                 let x2 = f32::min(x1 + s1, size.1 as f32);
                 let y2 = f32::min(y1 + s0, size.0 as f32);
 
-                boxes.push([x1, y1, x2, y2]);
-                scores.push(s.into_scalar());
+                boxes.push(BoundingBox {
+                    xmin: x1,
+                    ymin: y1,
+                    xmax: x2,
+                    ymax: y2,
+                    confidence: score.into_scalar(),
+                });
 
-                let mut lm: [f32; 10] = [0.0; 10];
+                let mut lm: Landmarks = [(0.0, 0.0); 5];
                 for j in 0..5 {
                     let lm0 = landmark.clone().slice([0, j * 2, ci0, ci1]).into_scalar();
                     let lm1 = landmark
@@ -195,72 +198,13 @@ impl CenterFace {
                         .slice([0, j * 2 + 1, ci0, ci1])
                         .into_scalar();
 
-                    lm[j * 2] = lm1 * s1 + x1;
-                    lm[j * 2 + 1] = lm0 * s0 + y1;
-
+                    lm[j] = (lm1 * s1 + x1, lm0 * s0 + y1);
                 }
                 lms.push(lm);
             }
-            let keep: Vec<usize> = self.nms(&boxes, &scores, 0.3);
-
-            // Keep only detections at indices in `keep`
-            boxes = keep.iter().map(|&i| boxes[i]).collect::<Vec<[f32; 4]>>();
-            lms = keep
-                .iter()
-                .map(|&i| lms[i].clone())
-                .collect::<Vec<[f32; 10]>>();
-            scores = keep.iter().map(|&i| scores[i]).collect::<Vec<f32>>();
+            non_maximum_suppression(&mut boxes, &mut lms, 0.3);
         }
-        (boxes, scores, lms)
-    }
-
-    fn nms(&self, boxes: &Vec<[f32; 4]>, scores: &Vec<f32>, nms_thresh: f32) -> Vec<usize> {
-        let num_detections = boxes.len();
-
-        // Sort indices by score descending
-        let mut indices: Vec<usize> = (0..num_detections).collect();
-        indices.sort_by(|&i, &j| scores[j].partial_cmp(&scores[i]).unwrap());
-
-        let mut suppressed = vec![false; num_detections];
-        let mut keep = Vec::new();
-
-        // Precompute areas
-        let areas: Vec<f32> = boxes
-            .iter()
-            .map(|b| (b[2] - b[0] + 1.0) * (b[3] - b[1] + 1.0))
-            .collect();
-
-        for _i in 0..num_detections {
-            let i = indices[_i];
-            if suppressed[i] {
-                continue;
-            }
-            keep.push(i);
-
-            let (ix1, iy1, ix2, iy2) = (boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]);
-            let iarea = areas[i];
-
-            for _j in (_i + 1)..num_detections {
-                let j = indices[_j];
-                if suppressed[j] {
-                    continue;
-                }
-
-                let (xx1, yy1) = (ix1.max(boxes[j][0]), iy1.max(boxes[j][1]));
-                let (xx2, yy2) = (ix2.min(boxes[j][2]), iy2.min(boxes[j][3]));
-
-                let w = (xx2 - xx1 + 1.0).max(0.0);
-                let h = (yy2 - yy1 + 1.0).max(0.0);
-
-                let inter = w * h;
-                let ovr = inter / (iarea + areas[j] - inter);
-                if ovr >= nms_thresh {
-                    suppressed[j] = true;
-                }
-            }
-        }
-
-        keep
+        (boxes, lms)
     }
 }
 
@@ -286,25 +230,24 @@ impl Detector for CenterFace {
 
         let (heatmap, scale, offset, lms) = self.model.forward(x);
 
-        let (detections, scores, lms) =
-            self.postprocess(heatmap, lms, offset, scale, sizes, threshold);
+        let (detections, lms) = self.postprocess(heatmap, lms, offset, scale, sizes, threshold);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
-            let x = detection[0];
-            let y = detection[1];
-            let w = detection[2] - x;
-            let h = detection[3] - y;
+            let x = detection.xmin;
+            let y = detection.ymin;
+            let w = detection.xmax - x;
+            let h = detection.ymax - y;
 
             let landmark = &lms[i];
 
-            let right_eye = (landmark[0] as u32, landmark[1] as u32);
-            let left_eye = (landmark[2] as u32, landmark[3] as u32);
-            let nose = (landmark[4] as u32, landmark[5] as u32);
-            let right_mouth = (landmark[6] as u32, landmark[7] as u32);
-            let left_mouth = (landmark[8] as u32, landmark[9] as u32);
+            let right_eye = (landmark[0].0 as u32, landmark[0].1 as u32);
+            let left_eye = (landmark[1].0 as u32, landmark[1].1 as u32);
+            let nose = (landmark[2].0 as u32, landmark[2].1 as u32);
+            let right_mouth = (landmark[3].0 as u32, landmark[3].1 as u32);
+            let left_mouth = (landmark[4].0 as u32, landmark[4].1 as u32);
 
-            let score = f32::max(scores[i], 0.0);
+            let confidence = detection.confidence.min(0.0).max(1.0);
             let facial_area = FacialAreaRegion {
                 x: x as u32,
                 y: y as u32,
@@ -315,7 +258,7 @@ impl Detector for CenterFace {
                 nose: Some(nose),
                 mouth_right: Some(right_mouth),
                 mouth_left: Some(left_mouth),
-                confidence: Some(f32::min(score, 1.0)),
+                confidence: Some(confidence),
             };
             results.push(facial_area);
         }
@@ -324,10 +267,9 @@ impl Detector for CenterFace {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::detection::{Detector, CenterFace};
+    use crate::detection::{CenterFace, Detector};
 
     #[test]
     fn one_face() {

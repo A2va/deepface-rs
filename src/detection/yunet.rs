@@ -1,9 +1,13 @@
+use std::ops::Bound;
+
 use burn::{backend::ndarray::NdArray, tensor::Tensor};
 use image::DynamicImage;
 use tuple_conv::RepeatedTuple;
 
-use super::{resize_to_multiple_of_divisor, to_tensor};
-use super::{Detector, FacialAreaRegion};
+use super::{
+    non_maximum_suppression, resize_to_multiple_of_divisor, to_tensor, BoundingBox, Landmarks,
+};
+use super::{DeepFaceBackend, Detector, FacialAreaRegion};
 
 mod yunet {
     include!(concat!(env!("OUT_DIR"), "/models/detection/yunet.rs"));
@@ -11,7 +15,6 @@ mod yunet {
 
 // https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp#L20
 
-type DeepFaceBackend = NdArray<f32>;
 
 /// Yunet face detector.
 ///
@@ -52,16 +55,22 @@ impl Yunet {
         &self,
         outputs: Vec<Tensor<DeepFaceBackend, 3>>,
         sizes: (u32, u32, f32, f32),
-    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>) {
-        let (mut dets, scores, mut lms) = self.decode(outputs, sizes);
+    ) -> (Vec<BoundingBox>, Vec<[(f32, f32); 5]>) {
+        let (mut dets, mut lms) = self.decode(outputs, sizes);
 
         let (height, width, scale_h, scale_w) = sizes;
 
         if !dets.is_empty() {
             dets = dets
                 .into_iter()
-                .map(|[x1, y1, x2, y2]| [x1 / scale_w, y1 / scale_h, x2 / scale_w, y2 / scale_h])
-                .collect::<Vec<[f32; 4]>>();
+                .map(|mut bbbox| {
+                    bbbox.xmin /= scale_w;
+                    bbbox.xmax /= scale_w;
+                    bbbox.ymin /= scale_h;
+                    bbbox.ymax /= scale_h;
+                    bbbox
+                })
+                .collect::<Vec<BoundingBox>>();
 
             // Scale landmarks
             lms = lms
@@ -72,20 +81,19 @@ impl Yunet {
                     }
                     landmark
                 })
-                .collect::<Vec<[(f32, f32); 5]>>();
+                .collect::<Vec<Landmarks>>();
         }
-        (dets, scores, lms)
+        (dets, lms)
     }
 
     fn decode(
         &self,
         outputs: Vec<Tensor<DeepFaceBackend, 3>>,
         sizes: (u32, u32, f32, f32),
-    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>) {
+    ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         let strides = [8, 16, 32];
 
-        let mut scores = Vec::new();
-        let mut boxes: Vec<[f32; 4]> = Vec::new();
+        let mut boxes = Vec::new();
         let mut lms = Vec::new();
 
         let score_threshold = 0.5;
@@ -115,8 +123,6 @@ impl Yunet {
                         continue;
                     }
 
-                    scores.push(score);
-
                     let cx = (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar())
                         * (*stride as f32);
                     let cy = (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar())
@@ -131,9 +137,15 @@ impl Yunet {
 
                     let x2 = cx + w / 2.0;
                     let y2 = cy + h / 2.0;
-                    boxes.push([x1, y1, x2, y2]);
+                    boxes.push(BoundingBox {
+                        xmin: x1,
+                        ymin: y1,
+                        xmax: x2,
+                        ymax: y2,
+                        confidence: score,
+                    });
 
-                    let mut lm: [(f32, f32); 5] = [(0.0, 0.0); 5];
+                    let mut lm: Landmarks = [(0.0, 0.0); 5];
                     // Get landmarks
                     for n in 0..5 {
                         let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar()
@@ -150,68 +162,9 @@ impl Yunet {
             }
         }
 
-
-
-        let keep: Vec<usize> = self.nms(&boxes, &scores, 0.3);
-
-        // Keep only detections at indices in `keep`
-        boxes = keep.iter().map(|&i| boxes[i]).collect::<Vec<[f32; 4]>>();
-        lms = keep
-            .iter()
-            .map(|&i| lms[i].clone())
-            .collect::<Vec<[(f32, f32); 5]>>();
-        scores = keep.iter().map(|&i| scores[i]).collect::<Vec<f32>>();
-
-        (boxes, scores, lms)
-    }
-
-    fn nms(&self, boxes: &Vec<[f32; 4]>, scores: &Vec<f32>, nms_thresh: f32) -> Vec<usize> {
-        let num_detections = boxes.len();
-
-        // Sort indices by score descending
-        let mut indices: Vec<usize> = (0..num_detections).collect();
-        indices.sort_by(|&i, &j| scores[j].partial_cmp(&scores[i]).unwrap());
-
-        let mut suppressed = vec![false; num_detections];
-        let mut keep = Vec::new();
-
-        // Precompute areas
-        let areas: Vec<f32> = boxes
-            .iter()
-            .map(|b| (b[2] - b[0] + 1.0) * (b[3] - b[1] + 1.0))
-            .collect();
-
-        for _i in 0..num_detections {
-            let i = indices[_i];
-            if suppressed[i] {
-                continue;
-            }
-            keep.push(i);
-
-            let (ix1, iy1, ix2, iy2) = (boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3]);
-            let iarea = areas[i];
-
-            for _j in (_i + 1)..num_detections {
-                let j = indices[_j];
-                if suppressed[j] {
-                    continue;
-                }
-
-                let (xx1, yy1) = (ix1.max(boxes[j][0]), iy1.max(boxes[j][1]));
-                let (xx2, yy2) = (ix2.min(boxes[j][2]), iy2.min(boxes[j][3]));
-
-                let w = (xx2 - xx1 + 1.0).max(0.0);
-                let h = (yy2 - yy1 + 1.0).max(0.0);
-
-                let inter = w * h;
-                let ovr = inter / (iarea + areas[j] - inter);
-                if ovr >= nms_thresh {
-                    suppressed[j] = true;
-                }
-            }
-        }
-
-        keep
+        // TODO Let user configure nms threshold
+        non_maximum_suppression(&mut boxes, &mut lms, 0.3);
+        (boxes, lms)
     }
 }
 
@@ -235,14 +188,14 @@ impl Detector for Yunet {
 
         let outputs = self.model.forward(x).to_vec();
 
-        let (detections, scores, lms) = self.postprocess(outputs, sizes);
+        let (detections, lms) = self.postprocess(outputs, sizes);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
-            let x = detection[0];
-            let y = detection[1];
-            let w = detection[2] - x;
-            let h = detection[3] - y;
+            let x = detection.xmin;
+            let y = detection.ymin;
+            let w = detection.xmax - x;
+            let h = detection.ymax - y;
 
             let landmark = &lms[i];
 
@@ -253,7 +206,7 @@ impl Detector for Yunet {
             let right_mouth = (landmark[3].0 as u32, landmark[3].1 as u32);
             let left_mouth = (landmark[4].0 as u32, landmark[4].1 as u32);
 
-            let score = f32::max(scores[i], 0.0);
+            let confidence = detection.confidence.min(0.0).max(1.0);
             let facial_area = FacialAreaRegion {
                 x: x as u32,
                 y: y as u32,
@@ -264,7 +217,7 @@ impl Detector for Yunet {
                 nose: Some(nose),
                 mouth_right: Some(right_mouth),
                 mouth_left: Some(left_mouth),
-                confidence: Some(f32::min(score, 1.0)),
+                confidence: Some(confidence)
             };
             results.push(facial_area);
         }

@@ -1,21 +1,14 @@
 pub mod centerface;
-pub mod yunet;
-
 pub use crate::detection::centerface::CenterFace;
+
+pub mod yunet;
 pub use crate::detection::yunet::Yunet;
+
 pub trait Detector {
     fn detect(&self, input: &DynamicImage) -> Vec<FacialAreaRegion>;
 }
 
-use burn::{
-    backend::NdArray,
-    prelude::Backend,
-    tensor::{Device, Element, Tensor, TensorData},
-};
-use image::{DynamicImage, ImageBuffer, Rgb};
-
-type DeepFaceBackend = NdArray;
-
+use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
 
 
 pub struct FacialAreaRegion {
@@ -32,10 +25,20 @@ pub struct FacialAreaRegion {
 }
 
 pub struct DetectedFace {
+    // TODO Explore SubImage for the DetectedFace, also what is confidence if it's present in FacialAreaRegion
+    i: SubImage<DynamicImage>,
     img: DynamicImage,
     facial_area: FacialAreaRegion,
     confidence: f32,
 }
+
+use burn::{
+    backend::NdArray,
+    prelude::Backend,
+    tensor::{Device, Element, Tensor, TensorData},
+};
+
+type DeepFaceBackend = NdArray;
 
 /// Resizes dimensions to be multiples of a specified divisor.
 ///
@@ -58,9 +61,14 @@ pub struct DetectedFace {
 /// * `scale_width` - The scaling factor for width (new_width / original_width)
 ///
 /// Note: Height is returned before width to match the convention used in many ML models.
-fn resize_to_multiple_of_divisor(width: u32, height: u32, divisor: u32) -> (u32, u32, f32, f32) {
-    let width = width as f32;
-    let height = height as f32;
+fn resize_to_multiple_of_divisor(
+    width: u32,
+    height: u32,
+    divisor: u32,
+    max_size: Option<u32>,
+) -> (u32, u32, f32, f32) {
+    let mut new_width = width as f32;
+    let mut new_height = height as f32;
 
     let new_height = f32::ceil(height / divisor as f32) * divisor as f32;
     let new_width = f32::ceil(width / divisor as f32) * divisor as f32;
@@ -104,6 +112,66 @@ fn to_tensor<B: Backend, T: Element>(
     )
     // [H, W, C] -> [C, H, W]
     .permute([2, 0, 1])
+}
+
+/// Represents a set of facial landmarks as 2D coordinates.
+///
+/// The landmarks are typically ordered as:
+/// - Right eye
+/// - Left eye
+/// - Nose
+/// - Right mouth corner
+/// - Left mouth corner
+///
+/// Note that the order is not strictly enforced, and the array contains 5 points
+/// represented as floating-point (x, y) coordinates.
+type Landmarks = [(f32, f32); 5];
+
+struct BoundingBox {
+    pub xmin: f32,
+    pub ymin: f32,
+    pub xmax: f32,
+    pub ymax: f32,
+    pub confidence: f32,
+}
+
+/// Intersection over union of two bounding boxes.
+fn iou(b1: &BoundingBox, b2: &BoundingBox) -> f32 {
+    let b1_area = (b1.xmax - b1.xmin + 1.) * (b1.ymax - b1.ymin + 1.);
+    let b2_area = (b2.xmax - b2.xmin + 1.) * (b2.ymax - b2.ymin + 1.);
+    let i_xmin = b1.xmin.max(b2.xmin);
+    let i_xmax = b1.xmax.min(b2.xmax);
+    let i_ymin = b1.ymin.max(b2.ymin);
+    let i_ymax = b1.ymax.min(b2.ymax);
+    let i_area = (i_xmax - i_xmin + 1.).max(0.) * (i_ymax - i_ymin + 1.).max(0.);
+    i_area / (b1_area + b2_area - i_area)
+}
+
+/// Perform non-maximum suppression over boxes of the same class.
+fn non_maximum_suppression(
+    bboxes: &mut Vec<BoundingBox>,
+    lms: &mut Vec<Landmarks>,
+    threshold: f32,
+) {
+    bboxes.sort_by(|b1, b2| b2.confidence.partial_cmp(&b1.confidence).unwrap());
+    let mut current_index = 0;
+    for index in 0..bboxes.len() {
+        let mut drop = false;
+        for prev_index in 0..current_index {
+            let iou = iou(&bboxes[prev_index], &bboxes[index]);
+            if iou > threshold {
+                drop = true;
+                break;
+            }
+        }
+        if !drop {
+            bboxes.swap(current_index, index);
+            lms.swap(current_index, index);
+            current_index += 1;
+        }
+    }
+    bboxes.truncate(current_index);
+    lms.truncate(current_index);
 }
 
 fn add_border(img: &DynamicImage) -> DynamicImage {
