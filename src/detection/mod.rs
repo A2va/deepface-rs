@@ -4,8 +4,57 @@ pub use crate::detection::centerface::CenterFace;
 pub mod yunet;
 pub use crate::detection::yunet::Yunet;
 
-pub trait Detector {
-    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion>;
+/// A trait that all face dectector implements
+pub trait Detector<B: Backend> {
+    /// The size‐rounding multiple (e.g. 32)
+    const DIVISOR: u32;
+    /// Optional max side (e.g. 640 for Yunet)
+    const MAX_SIZE: Option<u32>;
+
+    fn detect<I: ImageToTensor<B>>(
+        &self,
+        input: &I,
+        confidence_threshold: f32,
+    ) -> Vec<FacialAreaRegion>;
+}
+
+/// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`
+/// (channel-first format), suitable for deep learning models.
+///
+/// This trait is implemented for `image::DynamicImage` and `burn::tensor::Tensor`,
+/// allowing consistent conversion across image inputs and tensor data.
+///
+/// The resulting tensor is `[C, H, W]`.
+pub trait ImageToTensor<B: Backend> {
+    /// The ouput tensor format is [C, H, W], where C is the number of channel,
+    /// H the height and W the width
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3>;
+}
+
+/// Converts a `DynamicImage` to a tensor of shape `[C, H, W]`, in RGB format.
+impl<B: Backend> ImageToTensor<B> for DynamicImage {
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+        let rgb_image = self.to_rgb8();
+
+        // Convert image data to tensor
+        let data = rgb_image.into_raw();
+
+        // Create tensor from image data [H, W, C] and reshape to [C, H, W]
+        let tensor = to_tensor(
+            data,
+            [self.height() as usize, self.width() as usize, 3],
+            device,
+        );
+        tensor
+    }
+}
+
+/// Clones the tensor to the specified device. Assumes input is already `[C, H, W]`.
+impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
+    // The tensor must be in 3 dimensions [C, H, W]
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+        self.clone().to_device(device)
+    }
 }
 
 use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
@@ -36,8 +85,6 @@ use burn::{
     prelude::Backend,
     tensor::{Device, Element, Tensor, TensorData},
 };
-
-type DeepFaceBackend = NdArray;
 
 /// Represents resized dimensions and scale factors.
 #[derive(Debug, Clone, Copy)]
@@ -93,6 +140,22 @@ fn resize_to_divisor_multiple(
         height_scale: height_scale,
         width_scale,
     }
+}
+
+fn resize_tensor<B: Backend>(
+    tensor: Tensor<B, 3>,
+    divisor: u32,
+    max_size: Option<u32>,
+) -> (Tensor<B, 4>, ResizedDimensions) {
+    use burn::nn::interpolate::Interpolate2dConfig;
+    let (width, height) = (tensor.dims()[2] as u32, tensor.dims()[1] as u32);
+    let sizes = resize_to_divisor_multiple(width, height, divisor, max_size);
+
+    let interpolate = Interpolate2dConfig::new()
+        .with_output_size(Some([sizes.height as usize, sizes.width as usize]))
+        .init();
+
+    (interpolate.forward(tensor.unsqueeze::<4>()), sizes) // [B, C, H, W]
 }
 
 /// Converts a vector of data into a 3D tensor with optional permutation.

@@ -1,9 +1,8 @@
-use burn::tensor::Tensor;
-use image::DynamicImage;
+use burn::{prelude::Backend, tensor::Tensor};
 
 use super::{
-    non_maximum_suppression, resize_to_divisor_multiple, to_tensor, BoundingBox, DeepFaceBackend,
-    Detector, FacialAreaRegion, Landmarks, ResizedDimensions,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, ImageToTensor,
+    Landmarks, ResizedDimensions,
 };
 
 mod centerface {
@@ -26,11 +25,12 @@ mod centerface {
 ///   year    = {2019}
 /// }
 /// ```
-pub struct CenterFace {
-    model: centerface::Model<DeepFaceBackend>,
+pub struct CenterFace<B: Backend> {
+    model: centerface::Model<B>,
 }
 
-impl CenterFace {
+impl<B: Backend<FloatElem = f32>> CenterFace<B> {
+    // Construct a new instance of the model with a specific burn backend
     // Create a new Centerface face detector
     pub fn new() -> Self {
         let model = centerface::Model::default();
@@ -39,15 +39,14 @@ impl CenterFace {
 
     fn postprocess(
         &self,
-        heatmap: Tensor<DeepFaceBackend, 4>,
-        landmark: Tensor<DeepFaceBackend, 4>,
-        offset: Tensor<DeepFaceBackend, 4>,
-        scale: Tensor<DeepFaceBackend, 4>,
+        heatmap: Tensor<B, 4>,
+        landmark: Tensor<B, 4>,
+        offset: Tensor<B, 4>,
+        scale: Tensor<B, 4>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
-
         let (mut dets, mut lms) = self.decode(
             heatmap,
             scale,
@@ -74,7 +73,10 @@ impl CenterFace {
             .into_iter()
             .map(|mut landmark| {
                 for i in 0..5 {
-                    landmark[i] = (landmark[i].0 / sizes.width_scale, landmark[i].1 / sizes.height_scale)
+                    landmark[i] = (
+                        landmark[i].0 / sizes.width_scale,
+                        landmark[i].1 / sizes.height_scale,
+                    )
                 }
                 landmark
             })
@@ -85,10 +87,10 @@ impl CenterFace {
 
     fn decode(
         &self,
-        heatmap: Tensor<DeepFaceBackend, 4>,
-        scale: Tensor<DeepFaceBackend, 4>,
-        offset: Tensor<DeepFaceBackend, 4>,
-        landmark: Tensor<DeepFaceBackend, 4>,
+        heatmap: Tensor<B, 4>,
+        scale: Tensor<B, 4>,
+        offset: Tensor<B, 4>,
+        landmark: Tensor<B, 4>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -100,11 +102,11 @@ impl CenterFace {
         let scale_dim2 = scale.dims()[2];
         let scale_dim3 = scale.dims()[3];
 
-        let scale0: Tensor<DeepFaceBackend, 2> = scale
+        let scale0: Tensor<B, 2> = scale
             .clone()
             .slice([0..1, 0..1])
             .reshape([scale_dim2, scale_dim3]);
-        let scale1: Tensor<DeepFaceBackend, 2> = scale
+        let scale1: Tensor<B, 2> = scale
             .clone()
             .slice([0..1, 1..2])
             .reshape([scale_dim2, scale_dim3]);
@@ -196,26 +198,21 @@ impl CenterFace {
     }
 }
 
-impl Detector for CenterFace {
-    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion> {
+impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
+    const DIVISOR: u32 = 32;
+    const MAX_SIZE: Option<u32> = None;
+
+    /// See [`super::Detector`]
+    fn detect<I: ImageToTensor<B>>(
+        &self,
+        input: &I,
+        confidence_threshold: f32,
+    ) -> Vec<FacialAreaRegion> {
         let nms_threshold = 0.3;
-        let device = Default::default();
+        let device = &Default::default();
+        let (tensor, sizes) = resize_tensor(input.to_tensor(device), Self::DIVISOR, Self::MAX_SIZE);
 
-        // Resize the input image and conver it to a float vector
-        let sizes = resize_to_divisor_multiple(input.width(), input.height(), 32, None);
-        let resized = input
-            .resize_exact(sizes.width, sizes.height, image::imageops::FilterType::Lanczos3)
-            .to_rgb8();
-
-        // Create tensor from image data
-        let x = to_tensor(
-            resized.into_raw(),
-            [sizes.height as usize, sizes.width as usize, 3],
-            &device,
-        )
-        .unsqueeze::<4>(); // [B, C, H, W]
-
-        let (heatmap, scale, offset, lms) = self.model.forward(x);
+        let (heatmap, scale, offset, lms) = self.model.forward(tensor);
 
         let (detections, lms) = self.postprocess(
             heatmap,
@@ -265,12 +262,13 @@ impl Detector for CenterFace {
 #[cfg(test)]
 mod tests {
     use crate::detection::{CenterFace, Detector};
+    use burn::backend::NdArray;
 
     #[test]
     fn one_face() {
         let dataset_dir = std::env::current_dir().unwrap().join("dataset");
 
-        let model = CenterFace::new();
+        let model: CenterFace<NdArray> = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
         let results = model.detect(&img, 0.8);

@@ -1,4 +1,6 @@
-use deepface_rs::detection::{Yunet, Detector};
+use burn::backend::NdArray;
+use deepface_rs::detection::{Detector, Yunet};
+
 use image::ImageBuffer;
 
 // Assumes x1 <= x2 and y1 <= y2
@@ -25,11 +27,11 @@ fn draw_rect(
 }
 
 fn main() {
-    let model = Yunet::new();
+    let model: Yunet<NdArray> = Yunet::new();
 
     let img = image::open("dataset/one_face.jpg").unwrap();
 
-    let results  = model.detect(&img,0.8);
+    let results = model.detect(&img, 0.8);
 
     let mut img = img.to_rgb8();
     let result = results.first().unwrap();
@@ -73,7 +75,6 @@ fn main() {
         let pixel = img.get_pixel_mut(mouth_right.0, mouth_right.1);
         *pixel = image::Rgb([0, 255, 0]);
     }
-
 
     img.save("output_yunet.jpg").unwrap();
 }

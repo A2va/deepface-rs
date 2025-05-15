@@ -1,18 +1,14 @@
-use burn::tensor::Tensor;
-use image::DynamicImage;
+use burn::{prelude::Backend, tensor::Tensor};
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression, resize_to_divisor_multiple, to_tensor, BoundingBox, DeepFaceBackend,
-    Detector, FacialAreaRegion, Landmarks, ResizedDimensions,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, ImageToTensor,
+    Landmarks, ResizedDimensions,
 };
 
 mod yunet {
     include!(concat!(env!("OUT_DIR"), "/models/detection/yunet.rs"));
 }
-
-// https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp#L20
-
 
 /// Yunet face detector.
 ///
@@ -38,20 +34,22 @@ mod yunet {
 ///  publisher={Springer}
 /// }
 /// ```
-pub struct Yunet {
-    model: yunet::Model<DeepFaceBackend>,
+pub struct Yunet<B: Backend> {
+    model: yunet::Model<B>,
 }
 
-impl Yunet {
+impl<B: Backend<FloatElem = f32>> Yunet<B> {
     /// Create a new Yunet face detector.
     pub fn new() -> Self {
         let model = yunet::Model::default();
         Self { model }
     }
 
+    // Original implementation
+    // // https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp
     fn postprocess(
         &self,
-        outputs: Vec<Tensor<DeepFaceBackend, 3>>,
+        outputs: Vec<Tensor<B, 3>>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -74,7 +72,10 @@ impl Yunet {
             .into_iter()
             .map(|mut landmark| {
                 for i in 0..5 {
-                    landmark[i] = (landmark[i].0 / sizes.width_scale, landmark[i].1 / sizes.height_scale)
+                    landmark[i] = (
+                        landmark[i].0 / sizes.width_scale,
+                        landmark[i].1 / sizes.height_scale,
+                    )
                 }
                 landmark
             })
@@ -85,7 +86,7 @@ impl Yunet {
 
     fn decode(
         &self,
-        outputs: Vec<Tensor<DeepFaceBackend, 3>>,
+        outputs: Vec<Tensor<B, 3>>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -159,32 +160,26 @@ impl Yunet {
             }
         }
 
-        // TODO Let user configure nms threshold
         non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
         (boxes, lms)
     }
 }
 
-impl Detector for Yunet {
-    fn detect(&self, input: &DynamicImage, confidence_threshold: f32) -> Vec<FacialAreaRegion> {
+impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
+    const DIVISOR: u32 = 32;
+    const MAX_SIZE: Option<u32> = Some(640);
+
+    /// See [`super::Detector`]
+    fn detect<I: ImageToTensor<B>>(
+        &self,
+        input: &I,
+        confidence_threshold: f32,
+    ) -> Vec<FacialAreaRegion> {
         let nms_threshold = 0.3;
-        let device = Default::default();
+        let device = &Default::default();
+        let (tensor, sizes) = resize_tensor(input.to_tensor(device), Self::DIVISOR, Self::MAX_SIZE);
 
-        let sizes = resize_to_divisor_multiple(input.width(), input.height(), 32, Some(640));
-        let resized = input
-            .resize_exact(sizes.width, sizes.height, image::imageops::FilterType::Lanczos3)
-            .to_rgb8();
-
-
-        // Create tensor from image data
-        let x = to_tensor(
-            resized.into_raw(),
-            [sizes.height as usize, sizes.width as usize, 3],
-            &device,
-        )
-        .unsqueeze::<4>(); // [B, C, H, W]
-
-        let outputs = self.model.forward(x).to_vec();
+        let outputs = self.model.forward(tensor).to_vec();
 
         let (detections, lms) =
             self.postprocess(outputs, sizes, confidence_threshold, nms_threshold);
@@ -227,13 +222,13 @@ impl Detector for Yunet {
 
 #[cfg(test)]
 mod tests {
+    use burn::backend::NdArray;
     use crate::detection::{Detector, Yunet};
 
     #[test]
     fn one_face() {
         let dataset_dir = std::env::current_dir().unwrap().join("dataset");
-
-        let model = Yunet::new();
+        let model: Yunet<NdArray> = Yunet::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
         let results = model.detect(&img, 0.8);
