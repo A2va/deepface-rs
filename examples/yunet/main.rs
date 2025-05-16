@@ -1,5 +1,5 @@
 use burn::backend::NdArray;
-use deepface_rs::detection::{Detector, Yunet};
+use deepface::detection::{Detector, Yunet};
 
 use image::ImageBuffer;
 

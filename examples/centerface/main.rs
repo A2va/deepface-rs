@@ -1,5 +1,5 @@
 use burn::backend::NdArray;
-use deepface_rs::detection::{CenterFace, Detector};
+use deepface::detection::{CenterFace, Detector};
 use image::ImageBuffer;
 
 // Assumes x1 <= x2 and y1 <= y2
