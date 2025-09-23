@@ -2,9 +2,10 @@ use burn::{prelude::Backend, tensor::Tensor};
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, ImageToTensor,
-    Landmarks, ResizedDimensions,
+    non_maximum_suppression,resize_tensor, ResizedDimensions, BoundingBox, Detector, FacialAreaRegion,
+    Landmarks
 };
+use crate::ImageToTensor;
 
 mod yunet {
     include!(concat!(env!("OUT_DIR"), "/models/detection/yunet.rs"));
@@ -222,8 +223,8 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
 
 #[cfg(test)]
 mod tests {
-    use burn::backend::NdArray;
     use crate::detection::{Detector, Yunet};
+    use burn::backend::NdArray;
 
     #[test]
     fn one_face() {

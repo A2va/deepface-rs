@@ -1,9 +1,10 @@
 use burn::{prelude::Backend, tensor::Tensor};
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, ImageToTensor,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion,
     Landmarks, ResizedDimensions,
 };
+use crate::ImageToTensor;
 
 mod centerface {
     include!(concat!(env!("OUT_DIR"), "/models/detection/centerface.rs"));
@@ -145,7 +146,7 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
                 let ci0 = c0[i] as usize;
                 let ci1 = c1[i] as usize;
 
-                let s0: f32 = scale0
+                let s0 = scale0
                     .clone()
                     .slice([ci0, ci1])
                     .exp()

@@ -4,7 +4,10 @@ pub use crate::detection::centerface::CenterFace;
 pub mod yunet;
 pub use crate::detection::yunet::Yunet;
 
-/// A trait that all face dectector implements
+use crate::ImageToTensor;
+use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
+
+/// A trait that all face dectector models implements
 pub trait Detector<B: Backend> {
     /// The size‐rounding multiple (e.g. 32)
     const DIVISOR: u32;
@@ -17,48 +20,6 @@ pub trait Detector<B: Backend> {
         confidence_threshold: f32,
     ) -> Vec<FacialAreaRegion>;
 }
-
-/// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`
-/// (channel-first format), suitable for deep learning models.
-///
-/// This trait is implemented for `image::DynamicImage` and `burn::tensor::Tensor`,
-/// allowing consistent conversion across image inputs and tensor data.
-///
-/// The resulting tensor is `[C, H, W]`.
-pub trait ImageToTensor<B: Backend> {
-    /// The ouput tensor format is [C, H, W], where C is the number of channel,
-    /// H the height and W the width
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3>;
-}
-
-/// Converts a `DynamicImage` to a tensor of shape `[C, H, W]`, in RGB format.
-impl<B: Backend> ImageToTensor<B> for DynamicImage {
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
-        let rgb_image = self.to_rgb8();
-
-        // Convert image data to tensor
-        let data = rgb_image.into_raw();
-
-        // Create tensor from image data [H, W, C] and reshape to [C, H, W]
-        let tensor = to_tensor(
-            data,
-            [self.height() as usize, self.width() as usize, 3],
-            device,
-        );
-        tensor
-    }
-}
-
-/// Clones the tensor to the specified device. Assumes input is already `[C, H, W]`.
-impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
-    // The tensor must be in 3 dimensions [C, H, W]
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
-        self.clone().to_device(device)
-    }
-}
-
-use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
-
 
 pub struct FacialAreaRegion {
     pub x: u32,
@@ -79,12 +40,6 @@ pub struct DetectedFace {
     facial_area: FacialAreaRegion,
     confidence: f32,
 }
-
-use burn::{
-    backend::NdArray,
-    prelude::Backend,
-    tensor::{Device, Element, Tensor, TensorData},
-};
 
 /// Represents resized dimensions and scale factors.
 #[derive(Debug, Clone, Copy)]
@@ -107,9 +62,6 @@ struct ResizedDimensions {
 /// # Returns
 ///
 /// (new_height, new_width, height_scale, width_scale)
-/// Note: Height is returned first to match ML model conventions.
-/// Adjusts dimensions to nearest multiples of `divisor` while preserving aspect ratio.
-/// Returns (adjusted_height, adjusted_width, height_scale, width_scale)
 fn resize_to_divisor_multiple(
     original_width: u32,
     original_height: u32,
@@ -142,6 +94,11 @@ fn resize_to_divisor_multiple(
     }
 }
 
+
+use burn::prelude::{Backend, Tensor};
+
+/// Resize a tensor to match model input requirements.
+/// The tensor shape is expected to be [C, H, W] and will be resized to [1, C, new_H, new_W].
 fn resize_tensor<B: Backend>(
     tensor: Tensor<B, 3>,
     divisor: u32,
@@ -156,35 +113,6 @@ fn resize_tensor<B: Backend>(
         .init();
 
     (interpolate.forward(tensor.unsqueeze::<4>()), sizes) // [B, C, H, W]
-}
-
-/// Converts a vector of data into a 3D tensor with optional permutation.
-///
-/// # Arguments
-///
-/// * `data` - A vector of elements to be converted into a tensor
-/// * `shape` - The original shape of the tensor as [height, width, channels]
-/// * `device` - The backend device where the tensor will be created
-///
-/// # Returns
-///
-/// A 3D tensor with data converted to the backend's float element type and permuted from [H, W, C] to [C, H, W]
-///
-/// # Note
-///
-/// This function is useful for preparing image data for machine learning models by converting
-/// raw data to a tensor and rearranging the dimensions to match model input requirements.
-fn to_tensor<B: Backend, T: Element>(
-    data: Vec<T>,
-    shape: [usize; 3],
-    device: &Device<B>,
-) -> Tensor<B, 3> {
-    Tensor::<B, 3>::from_data(
-        TensorData::new(data, shape).convert::<B::FloatElem>(),
-        device,
-    )
-    // [H, W, C] -> [C, H, W]
-    .permute([2, 0, 1])
 }
 
 /// Represents a set of facial landmarks as 2D coordinates.
