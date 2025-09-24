@@ -58,8 +58,29 @@ fn detection_models() {
     }
 }
 
+fn recognition_models() {
+    let path = Path::new("models/recognition");
+    std::fs::create_dir_all(path).unwrap();
+    const WEIGHTS: [(&'static str, &'static str); 1] = [("https://github.com/A2va/deepface-rs/releases/download/v0.0/deepid.onnx", "deepid.onnx")];
+    for (url, filename) in WEIGHTS {
+        let file = path.join(filename);
+        download_file_if_necessary(url, &file);
+
+        if file.exists() {
+            println!("file exists: {}", file.display());
+            let extension = file.extension().unwrap().to_str().unwrap();
+            match extension {
+                "onnx" => burn_onnx_converter(file, path.to_str().unwrap()),
+                _ => (),
+            }
+        }
+        
+    }
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     test_files();
     detection_models();
+    recognition_models();
 }

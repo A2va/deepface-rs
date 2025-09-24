@@ -5,14 +5,15 @@ edition = "2021"
 
 [dependencies]
 image = "0.25"
-burn = {version = "0.17", features = ["ndarray", "vision"]}
-burn-import = "0.17"
+# burn = {version = "0.17", features = ["ndarray", "vision"]}
+burn = {git = "https://github.com/tracel-ai/burn", rev = "8e0474c", features = ["ndarray", "vision"]}
 thiserror = "1"
 tuple-conv = "1.0.1"
 
 [build-dependencies]
 reqwest = {version = "0.12", features = ["blocking"]}
-burn-import = "0.17"
+# burn-import = "0.17"
+burn-import = {git = "https://github.com/tracel-ai/burn", rev = "8e0474c"}
 
 # [target.'cfg(target_arch = "wasm32")'.dependencies]
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
@@ -20,7 +21,13 @@ burn-import = "0.17"
 [profile.dev]
 opt-level = 2     
 
+# Detection examples
 [[example]]
 name = "yunet"
 [[example]]
 name = "centerface"
+
+# Recognition examples
+[[example]]
+name = "deepid"
+
