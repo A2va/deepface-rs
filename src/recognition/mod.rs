@@ -1,5 +1,5 @@
 pub mod facenet;
-pub use crate::recognition::facenet::Facenet;
+pub use crate::recognition::facenet::FaceNet512;
 
 pub mod deepid;
 pub use crate::recognition::deepid::DeepID;
@@ -37,6 +37,8 @@ pub enum NormalizationMethod {
     /// Normalize for the ArcFace model
     ArcFace,
 }
+
+
 
 fn resize<B: Backend>(
     tensor: Tensor<B, 3>, // [C, H, W]

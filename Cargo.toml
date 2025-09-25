@@ -30,4 +30,6 @@ name = "centerface"
 # Recognition examples
 [[example]]
 name = "deepid"
+[[example]]
+name = "facenet"
 

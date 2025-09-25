@@ -31,7 +31,6 @@ pub struct CenterFace<B: Backend> {
 }
 
 impl<B: Backend<FloatElem = f32>> CenterFace<B> {
-    // Construct a new instance of the model with a specific burn backend
     // Create a new Centerface face detector
     pub fn new() -> Self {
         let model = centerface::Model::default();

@@ -26,9 +26,9 @@ fn burn_onnx_converter<P: AsRef<Path>>(path: P, out_dir: &str) {
 }
 
 fn test_files() {
-    let path = Path::new("dataset"); 
+    let path = Path::new("dataset");
     std::fs::create_dir_all(path).unwrap();
-    
+
     let url = "https://raw.githubusercontent.com/serengil/deepface/refs/heads/master/tests/dataset/img1.jpg";
     download_file_if_necessary(url, path.join("one_face.jpg"));
 }
@@ -37,11 +37,16 @@ fn detection_models() {
     let path = Path::new("models/detection");
     std::fs::create_dir_all(path).unwrap();
 
-    const WEIGHTS: [(&'static str, &'static str); 2] = [(
-        "https://github.com/A2va/deepface-rs/releases/download/v0.0/centerface.onnx",
-        "centerface.onnx"),(
-        "https://github.com/A2va/deepface-rs/releases/download/v0.0/yunet.onnx",
-        "yunet.onnx")];
+    const WEIGHTS: [(&'static str, &'static str); 2] = [
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/centerface.onnx",
+            "centerface.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/yunet.onnx",
+            "yunet.onnx",
+        ),
+    ];
 
     for (url, filename) in WEIGHTS {
         let file = path.join(filename);
@@ -61,7 +66,16 @@ fn detection_models() {
 fn recognition_models() {
     let path = Path::new("models/recognition");
     std::fs::create_dir_all(path).unwrap();
-    const WEIGHTS: [(&'static str, &'static str); 1] = [("https://github.com/A2va/deepface-rs/releases/download/v0.0/deepid.onnx", "deepid.onnx")];
+    const WEIGHTS: [(&'static str, &'static str); 2] = [
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/deepid.onnx",
+            "deepid.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/facenet512.onnx",
+            "facenet512.onnx",
+        ),
+    ];
     for (url, filename) in WEIGHTS {
         let file = path.join(filename);
         download_file_if_necessary(url, &file);
@@ -74,7 +88,6 @@ fn recognition_models() {
                 _ => (),
             }
         }
-        
     }
 }
 
