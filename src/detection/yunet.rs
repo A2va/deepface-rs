@@ -2,8 +2,8 @@ use burn::{backend::ndarray::NdArray, tensor::Tensor};
 use image::DynamicImage;
 use tuple_conv::RepeatedTuple;
 
-use super::{Detector, FacialAreaRegion};
 use super::{resize_to_multiple_of_divisor, to_tensor};
+use super::{Detector, FacialAreaRegion};
 
 mod yunet {
     include!(concat!(env!("OUT_DIR"), "/models/detection/yunet.rs"));
@@ -22,7 +22,21 @@ type DeepFaceBackend = NdArray<f32>;
 ///
 /// # Licensing
 /// - Model weights: [MIT License](https://opensource.org/licenses/MIT)  
-/// - OpenCV reference implementation: [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0)  
+/// - OpenCV reference implementation: [Apache 2.0 License](https://opensource.org/license/apache-2-0)
+/// # Reference:
+///
+/// ```text
+/// @article{wu2023yunet,
+///  title={Yunet: A tiny millisecond-level face detector},
+///  author={Wu, Wei and Peng, Hanyang and Yu, Shiqi},
+///  journal={Machine Intelligence Research},
+///  volume={20},
+///  number={5},
+///  pages={656--665},
+///  year={2023},
+///  publisher={Springer}
+/// }
+/// ```
 pub struct Yunet {
     model: yunet::Model<DeepFaceBackend>,
 }
@@ -34,7 +48,11 @@ impl Yunet {
         Self { model }
     }
 
-    fn postprocess(&self, outputs: Vec<Tensor<DeepFaceBackend, 3>>, sizes: (u32, u32, f32, f32))  -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>){
+    fn postprocess(
+        &self,
+        outputs: Vec<Tensor<DeepFaceBackend, 3>>,
+        sizes: (u32, u32, f32, f32),
+    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>) {
         let (mut dets, scores, mut lms) = self.decode(outputs, sizes);
 
         let (height, width, scale_h, scale_w) = sizes;
@@ -59,14 +77,18 @@ impl Yunet {
         (dets, scores, lms)
     }
 
-    fn decode(&self, outputs: Vec<Tensor<DeepFaceBackend, 3>>, sizes: (u32, u32, f32, f32)) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>) {
+    fn decode(
+        &self,
+        outputs: Vec<Tensor<DeepFaceBackend, 3>>,
+        sizes: (u32, u32, f32, f32),
+    ) -> (Vec<[f32; 4]>, Vec<f32>, Vec<[(f32, f32); 5]>) {
         let strides = [8, 16, 32];
 
         let mut scores = Vec::new();
         let mut boxes: Vec<[f32; 4]> = Vec::new();
         let mut lms = Vec::new();
 
-        let score_threshold = 0.8;
+        let score_threshold = 0.5;
 
         for (i, stride) in strides.iter().enumerate() {
             let cls = &outputs[i];
@@ -74,7 +96,7 @@ impl Yunet {
             let bbox = &outputs[i + strides.len() * 2];
             let kkps = &outputs[i + strides.len() * 3];
 
-            let rows = (sizes.0 as usize / stride) as usize;
+            let rows: usize = (sizes.0 as usize / stride) as usize;
             let cols = (sizes.1 as usize / stride) as usize;
 
             for row in 0..rows {
@@ -95,12 +117,14 @@ impl Yunet {
 
                     scores.push(score);
 
-                    let cx =
-                        (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar()) * (*stride as f32);
-                    let cy =
-                        (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar()) * (*stride as f32);
-                    let w = f32::exp(bbox.clone().slice([0, idx, 2]).into_scalar()) * (*stride as f32);
-                    let h = f32::exp(bbox.clone().slice([0, idx, 3]).into_scalar()) * (*stride as f32);
+                    let cx = (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar())
+                        * (*stride as f32);
+                    let cy = (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar())
+                        * (*stride as f32);
+                    let w =
+                        f32::exp(bbox.clone().slice([0, idx, 2]).into_scalar()) * (*stride as f32);
+                    let h =
+                        f32::exp(bbox.clone().slice([0, idx, 3]).into_scalar()) * (*stride as f32);
 
                     let x1 = cx - w / 2.0;
                     let y1 = cy - h / 2.0;
@@ -109,13 +133,16 @@ impl Yunet {
                     let y2 = cy + h / 2.0;
                     boxes.push([x1, y1, x2, y2]);
 
-                
                     let mut lm: [(f32, f32); 5] = [(0.0, 0.0); 5];
                     // Get landmarks
                     for n in 0..5 {
-                        let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar() + col as f32) * (*stride as f32);
-                        let landmark_y = (kkps.clone().slice([0, idx, n * 2 + 1]).into_scalar() + row as f32) * (*stride as f32);
-                        
+                        let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar()
+                            + col as f32)
+                            * (*stride as f32);
+                        let landmark_y = (kkps.clone().slice([0, idx, n * 2 + 1]).into_scalar()
+                            + row as f32)
+                            * (*stride as f32);
+
                         lm[n] = (landmark_x, landmark_y);
                     }
                     lms.push(lm);
@@ -123,15 +150,17 @@ impl Yunet {
             }
         }
 
+
+
         let keep: Vec<usize> = self.nms(&boxes, &scores, 0.3);
 
         // Keep only detections at indices in `keep`
         boxes = keep.iter().map(|&i| boxes[i]).collect::<Vec<[f32; 4]>>();
-            lms = keep
-                .iter()
-                .map(|&i| lms[i].clone())
-                .collect::<Vec<[(f32, f32); 5]>>();
-            scores = keep.iter().map(|&i| scores[i]).collect::<Vec<f32>>();
+        lms = keep
+            .iter()
+            .map(|&i| lms[i].clone())
+            .collect::<Vec<[(f32, f32); 5]>>();
+        scores = keep.iter().map(|&i| scores[i]).collect::<Vec<f32>>();
 
         (boxes, scores, lms)
     }
@@ -188,7 +217,7 @@ impl Yunet {
 
 impl Detector for Yunet {
     fn detect(&self, input: &DynamicImage) -> Vec<FacialAreaRegion> {
-        let sizes = resize_to_multiple_of_divisor(input.width(), input.height(), 32);
+        let sizes = resize_to_multiple_of_divisor(input.width(), input.height(), 32, Some(640));
         let resized = input
             .resize_exact(sizes.1, sizes.0, image::imageops::FilterType::Lanczos3)
             .to_rgb8();
@@ -206,8 +235,7 @@ impl Detector for Yunet {
 
         let outputs = self.model.forward(x).to_vec();
 
-       let (detections, scores, lms) =
-            self.postprocess(outputs, sizes);
+        let (detections, scores, lms) = self.postprocess(outputs, sizes);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
@@ -247,9 +275,17 @@ impl Detector for Yunet {
 
 #[cfg(test)]
 mod tests {
+    use crate::detection::{Detector, Yunet};
+
     #[test]
-    fn parse_line() {
-        let p = std::env::current_dir().unwrap();
-        println!("{}", p.display());
+    fn one_face() {
+        let dataset_dir = std::env::current_dir().unwrap().join("dataset");
+
+        let model = Yunet::new();
+
+        let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
+        let results = model.detect(&img);
+
+        assert_eq!(results.len(), 1, "one face should have been detected");
     }
 }

@@ -22,4 +22,5 @@ opt-level = 2
 
 [[example]]
 name = "yunet"
-
+[[example]]
+name = "centerface"
