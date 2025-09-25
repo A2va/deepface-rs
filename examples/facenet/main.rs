@@ -1,6 +1,6 @@
 use burn::backend::NdArray;
-use deepface::recognition::{FaceNet512, Recognizer};
 use burn::tensor::linalg::cosine_similarity;
+use deepface::recognition::{FaceNet512, Recognizer};
 
 fn main() {
     let model: FaceNet512<NdArray> = FaceNet512::new();

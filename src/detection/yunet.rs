@@ -2,8 +2,8 @@ use burn::{prelude::Backend, tensor::Tensor};
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression,resize_tensor, ResizedDimensions, BoundingBox, Detector, FacialAreaRegion,
-    Landmarks
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, Landmarks,
+    ResizedDimensions,
 };
 use crate::ImageToTensor;
 

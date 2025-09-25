@@ -1,8 +1,8 @@
 use burn::{prelude::Backend, tensor::Tensor};
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion,
-    Landmarks, ResizedDimensions,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, Landmarks,
+    ResizedDimensions,
 };
 use crate::ImageToTensor;
 
@@ -15,7 +15,7 @@ mod centerface {
 /// Model and resources: [Star-Clouds – CenterFace](https://github.com/Star-Clouds/CenterFace)    
 ///
 /// Licensed under the [MIT License](https://opensource.org/licenses/MIT).
-/// 
+///
 /// # Reference:
 ///
 /// ```text

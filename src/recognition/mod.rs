@@ -17,7 +17,11 @@ pub trait Recognizer<B: Backend> {
     const SHAPE: (u32, u32);
 
     /// Generate an embedding from an input image, applying the specified normalization method if provided.
-    fn embed<I: ImageToTensor<B>>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<B, 1>;
+    fn embed<I: ImageToTensor<B>>(
+        &self,
+        input: &I,
+        norm: Option<NormalizationMethod>,
+    ) -> Tensor<B, 1>;
 }
 
 /// Normalization methods for face embeddings
@@ -52,7 +56,7 @@ fn resize<B: Backend>(
     let resized = interpolate.forward(tensor.unsqueeze::<4>()); // [1, C, H, W]
 
     assert!(resized.dims() == [1, 3, target_h, target_w]);
-    resized 
+    resized
 }
 
 fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod) -> Tensor<B, 4> {
@@ -61,28 +65,32 @@ fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod)
     let min = tensor.clone().max().into_scalar().to_i32();
     assert_eq!(max, 255);
     assert_eq!(min, 0);
-    
+
     match norm {
         NormalizationMethod::None => tensor,
         NormalizationMethod::ZeroOne => tensor / 255.0,
         NormalizationMethod::FaceNet => {
-            let flat = tensor.clone().flatten::<2>(1,-1); // [N, C*H*W]
+            let flat = tensor.clone().flatten::<2>(1, -1); // [N, C*H*W]
 
             // Compute mean & std per batch → shape [N,1,1,1] for broadcasting
-            let mean = flat.clone().mean_dim(1).reshape([tensor.dims()[0], 1, 1, 1]);
+            let mean = flat
+                .clone()
+                .mean_dim(1)
+                .reshape([tensor.dims()[0], 1, 1, 1]);
             let std = flat.var(1).sqrt().reshape([tensor.dims()[0], 1, 1, 1]);
             (tensor - mean) / std
         }
         NormalizationMethod::FaceNet2018 => (tensor / 127.5) - 1.0,
         NormalizationMethod::VGGFace => normalize_with_means(tensor, [93.5940, 104.7624, 129.1863]),
-        NormalizationMethod::VGGFace2 => normalize_with_means(tensor, [91.4953, 103.8827, 131.0912]),
+        NormalizationMethod::VGGFace2 => {
+            normalize_with_means(tensor, [91.4953, 103.8827, 131.0912])
+        }
         NormalizationMethod::ArcFace => (tensor - 127.5) / 128.0,
     }
 }
 
 // Excepct a tensor in the format [B, C, H, W]
 fn normalize_with_means<B: Backend>(tensor: Tensor<B, 4>, means: [f64; 3]) -> Tensor<B, 4> {
-
     // Split channels and subtract
     let mut out = tensor.clone();
     for (c, mean) in means.iter().enumerate() {

@@ -1,6 +1,6 @@
 use burn::backend::NdArray;
-use deepface::recognition::{DeepID, Recognizer};
 use burn::tensor::linalg::cosine_similarity;
+use deepface::recognition::{DeepID, Recognizer};
 
 fn main() {
     let model: DeepID<NdArray> = DeepID::new();

@@ -94,7 +94,6 @@ fn resize_to_divisor_multiple(
     }
 }
 
-
 use burn::prelude::{Backend, Tensor};
 
 /// Resize a tensor to match model input requirements.

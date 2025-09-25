@@ -3,7 +3,7 @@ pub mod recognition;
 
 use burn::prelude::{Backend, Device};
 use burn::tensor::{Element, Tensor, TensorData};
-use image::{DynamicImage};
+use image::DynamicImage;
 
 /// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`
 /// (channel-first format), suitable for deep learning models.
@@ -43,7 +43,6 @@ impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
         self.clone().to_device(device)
     }
 }
-
 
 /// Converts a vector of data into a 3D tensor with optional permutation.
 ///
