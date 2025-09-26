@@ -1,7 +1,11 @@
+#[cfg(feature = "facenet512")]
 pub mod facenet;
+#[cfg(feature = "facenet512")]
 pub use crate::recognition::facenet::FaceNet512;
 
+#[cfg(feature = "deepid")]
 pub mod deepid;
+#[cfg(feature = "deepid")]
 pub use crate::recognition::deepid::DeepID;
 
 use crate::ImageToTensor;

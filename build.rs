@@ -49,15 +49,21 @@ fn detection_models() {
     ];
 
     for (url, filename) in WEIGHTS {
-        let file = path.join(filename);
-        println!("url {}", url);
-        download_file_if_necessary(url, &file);
+        let filename = Path::new(filename);
+        let feature = filename.file_stem().unwrap().to_str().unwrap().to_string();
+        let feature = format!("CARGO_FEATURE_{}", feature.replace('-', "_").to_uppercase());
 
-        if file.exists() {
-            let extension = file.extension().unwrap().to_str().unwrap();
-            match extension {
-                "onnx" => burn_onnx_converter(file, path.to_str().unwrap()),
-                _ => (),
+        if std::env::var(&feature).is_ok() {
+            let file = path.join(filename);
+            println!("url {}", url);
+            download_file_if_necessary(url, &file);
+
+            if file.exists() {
+                let extension = file.extension().unwrap().to_str().unwrap();
+                match extension {
+                    "onnx" => burn_onnx_converter(file, path.to_str().unwrap()),
+                    _ => (),
+                }
             }
         }
     }
@@ -77,15 +83,21 @@ fn recognition_models() {
         ),
     ];
     for (url, filename) in WEIGHTS {
-        let file = path.join(filename);
-        download_file_if_necessary(url, &file);
+        let filename = Path::new(filename);
+        let feature = filename.file_stem().unwrap().to_str().unwrap().to_string();
+        let feature = format!("CARGO_FEATURE_{}", feature.replace('-', "_").to_uppercase());
 
-        if file.exists() {
-            println!("file exists: {}", file.display());
-            let extension = file.extension().unwrap().to_str().unwrap();
-            match extension {
-                "onnx" => burn_onnx_converter(file, path.to_str().unwrap()),
-                _ => (),
+        if std::env::var(&feature).is_ok() {
+            let file = path.join(filename);
+            println!("url {}", url);
+            download_file_if_necessary(url, &file);
+
+            if file.exists() {
+                let extension = file.extension().unwrap().to_str().unwrap();
+                match extension {
+                    "onnx" => burn_onnx_converter(file, path.to_str().unwrap()),
+                    _ => (),
+                }
             }
         }
     }
@@ -93,6 +105,12 @@ fn recognition_models() {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DETECTION_CENTERFACE");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DETECTION_YUNET");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_DEEPID");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_FACENET512");
+
     test_files();
     detection_models();
     recognition_models();

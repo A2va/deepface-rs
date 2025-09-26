@@ -1,7 +1,11 @@
+#[cfg(feature = "centerface")]
 pub mod centerface;
+#[cfg(feature = "centerface")]
 pub use crate::detection::centerface::CenterFace;
 
+#[cfg(feature = "yunet")]
 pub mod yunet;
+#[cfg(feature = "yunet")]
 pub use crate::detection::yunet::Yunet;
 
 use crate::ImageToTensor;
@@ -90,7 +94,7 @@ fn resize_to_divisor_multiple(
         width: adjusted_width as u32,
         height: adjusted_height as u32,
         height_scale: height_scale,
-        width_scale,
+        width_scale: width_scale,
     }
 }
 
