@@ -14,7 +14,7 @@ mod centerface {
 ///
 /// Model and resources: [Star-Clouds – CenterFace](https://github.com/Star-Clouds/CenterFace)    
 ///
-/// Licensed under the [MIT License](https://opensource.org/licenses/MIT).
+/// Licensed under the [MIT License](https://github.com/Star-Clouds/CenterFace/blob/master/LICENSE).
 ///
 /// # Reference:
 ///

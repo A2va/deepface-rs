@@ -19,8 +19,8 @@ mod yunet {
 /// Model and resources: [OpenCV Zoo – Yunet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)  
 ///
 /// # Licensing
-/// - Model weights: [MIT License](https://opensource.org/licenses/MIT)  
-/// - OpenCV reference implementation: [Apache 2.0 License](https://opensource.org/license/apache-2-0)
+/// - Model weights: [MIT License](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)  
+/// - OpenCV reference implementation: [Apache 2.0 License](https://github.com/opencv/opencv/blob/4.x/LICENSE)
 /// # Reference:
 ///
 /// ```text
@@ -47,7 +47,7 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
     }
 
     // Original implementation
-    // // https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp
+    // https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp
     fn postprocess(
         &self,
         outputs: Vec<Tensor<B, 3>>,

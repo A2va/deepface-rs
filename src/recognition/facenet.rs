@@ -12,7 +12,7 @@ mod facenet512 {
 /// FaceNet512 face recognition model.
 /// Model and resources: [David Sandberg - Facenet](https://github.com/davidsandberg/facenet)
 ///
-/// Licensed under the [MIT License](https://opensource.org/licenses/MIT).  
+/// Licensed under the [MIT License](https://github.com/davidsandberg/facenet/blob/master/LICENSE.md).  
 pub struct FaceNet512<B: Backend> {
     model: facenet512::Model<B>,
 }
