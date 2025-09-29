@@ -1,3 +1,18 @@
+//! A rust implementation of the [deepface](https://github.com/serengil/deepface) python library.
+//! # Supported models
+//! Detection:
+//! * CenterFace
+//! * Yunet
+//!
+//! Recognition:
+//! * DeepID
+//! * FaceNet512
+//!
+//! To use one of these model, you must add them as features in your `Cargo.toml`:
+//! ```toml
+//! deepface = {git = "https://github.com/A2va/deepface-rs", features = ["yunet", "facenet512"]}
+//! ```
+
 pub mod detection;
 pub mod recognition;
 
@@ -6,7 +21,6 @@ use burn::tensor::{Element, Tensor, TensorData};
 use image::DynamicImage;
 
 /// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`
-/// (channel-first format), suitable for deep learning models.
 ///
 /// This trait is implemented for `image::DynamicImage` and `burn::tensor::Tensor`,
 /// allowing consistent conversion across image inputs and tensor data.
@@ -55,11 +69,6 @@ impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
 /// # Returns
 ///
 /// A 3D tensor with data converted to the backend's float element type and permuted from [H, W, C] to [C, H, W]
-///
-/// # Note
-///
-/// This function is useful for preparing image data for machine learning models by converting
-/// raw data to a tensor and rearranging the dimensions to match model input requirements.
 fn to_tensor<B: Backend, T: Element>(
     data: Vec<T>,
     shape: [usize; 3],

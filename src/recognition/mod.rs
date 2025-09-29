@@ -46,8 +46,6 @@ pub enum NormalizationMethod {
     ArcFace,
 }
 
-
-
 fn resize<B: Backend>(
     tensor: Tensor<B, 3>, // [C, H, W]
     shape: (u32, u32),
