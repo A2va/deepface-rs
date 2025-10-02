@@ -4,6 +4,7 @@ A rust implementation of the [deepface](https://github.com/serengil/deepface) py
 
 Detction:
 * Centerface
+* Dlib (needs to have [xmake](https://xmake.io/) installed)
 * Yunet
 
 Recognition:

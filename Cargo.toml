@@ -7,6 +7,8 @@ edition = "2021"
 image = "0.25"
 # burn = {version = "0.17", features = ["ndarray", "vision"]}
 burn = {git = "https://github.com/tracel-ai/burn", rev = "8e0474c", features = ["ndarray", "vision"]}
+dlib_sys = {package = "dlib", git = "https://github.com/a2va/dlib-rs", branch = "main", optional = true, features = ["embed-all"]}
+
 thiserror = "1"
 tuple-conv = "1.0.1"
 
@@ -19,12 +21,13 @@ burn-import = {git = "https://github.com/tracel-ai/burn", rev = "8e0474c"}
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-# default = ["yunet", "centerface", "deepid", "facenet512"]
+# default = ["yunet", "centerface", "dlib", "deepid", "facenet512"]
 default = []
 
 # Detection models
 yunet = []
 centerface = []
+dlib = ["dlib_sys"]
 
 # Recognition models
 deepid = []
@@ -40,6 +43,9 @@ required-features = ["yunet"]
 [[example]]
 name = "centerface"
 required-features = ["centerface"]
+[[example]]
+name = "dlib"
+required-features = ["dlib"]
 
 # Recognition examples
 [[example]]
