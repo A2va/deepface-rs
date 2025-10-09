@@ -64,7 +64,7 @@ fn resize<B: Backend>(
 fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod) -> Tensor<B, 4> {
     // Check that the tensor is between 0 and 255, rgb image
     let max = tensor.clone().max().into_scalar().to_i32();
-    let min = tensor.clone().max().into_scalar().to_i32();
+    let min = tensor.clone().min().into_scalar().to_i32();
     assert_eq!(max, 255);
     assert_eq!(min, 0);
 
