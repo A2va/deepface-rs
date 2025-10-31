@@ -65,8 +65,8 @@ fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod)
     // Check that the tensor is between 0 and 255, rgb image
     let max = tensor.clone().max().into_scalar().to_i32();
     let min = tensor.clone().min().into_scalar().to_i32();
-    assert_eq!(max, 255);
-    assert_eq!(min, 0);
+    assert!(max <= 255);
+    assert!(min >= 0);
 
     match norm {
         NormalizationMethod::None => tensor,
