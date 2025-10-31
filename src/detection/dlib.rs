@@ -49,7 +49,8 @@ impl<B: Backend> Detector<B> for Dlib<B> {
     fn detect<I: ImageToTensor<B>>(
         &self,
         input: &I,
-        confidence_threshold: f32,
+        _confidence_threshold: f32,
+        _nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
         let device = &Default::default();
         let tensor = input.to_tensor(device).int();

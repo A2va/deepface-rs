@@ -31,7 +31,7 @@ fn main() {
 
     let img = image::open("dataset/one_face.jpg").unwrap();
 
-    let results = model.detect(&img, 0.8);
+    let results = model.detect(&img, 0.8, None);
 
     let mut img = img.to_rgb8();
     let result = results.first().unwrap();

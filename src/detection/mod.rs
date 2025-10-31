@@ -22,11 +22,16 @@ pub trait Detector<B: Backend> {
     const DIVISOR: u32;
     /// Optional max side (e.g. 640 for Yunet)
     const MAX_SIZE: Option<u32>;
-
+ 
+    /// Detect faces in an input image, returning bounding boxes and landmarks.
+    /// - `input`: The input image implementing `ImageToTensor`, tensor are also accepted
+    /// - `confidence_threshold`: Minimum confidence to consider a detection valid
+    /// - `nms_threshold`: Optional IoU threshold for non-maximum suppression
     fn detect<I: ImageToTensor<B>>(
         &self,
         input: &I,
         confidence_threshold: f32,
+        nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion>;
 }
 

@@ -12,7 +12,7 @@ mod centerface {
 
 /// Centerface face detector.
 ///
-/// Model and resources: [Star-Clouds – CenterFace](https://github.com/Star-Clouds/CenterFace)    
+/// Model and resources: [Star-Clouds – CenterFace](https://github.com/Star-Clouds/CenterFace)
 ///
 /// Licensed under the [MIT License](https://github.com/Star-Clouds/CenterFace/blob/master/LICENSE).
 ///
@@ -207,8 +207,9 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
         &self,
         input: &I,
         confidence_threshold: f32,
+        nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
-        let nms_threshold = 0.3;
+        let nms_threshold = nms_threshold.unwrap_or(0.3);
         let device = &Default::default();
         let (tensor, sizes) = resize_tensor(input.to_tensor(device), Self::DIVISOR, Self::MAX_SIZE);
 
@@ -271,7 +272,7 @@ mod tests {
         let model: CenterFace<NdArray> = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img, 0.8);
+        let results = model.detect(&img, 0.8, None);
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }

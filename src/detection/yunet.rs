@@ -13,13 +13,13 @@ mod yunet {
 
 /// Yunet face detector.
 ///
-/// A lightweight fast face detection model trained by OpenCV.  
-/// It predicts face bounding boxes and landmarks from an input image.  
+/// A lightweight fast face detection model trained by OpenCV.
+/// It predicts face bounding boxes and landmarks from an input image.
 ///
-/// Model and resources: [OpenCV Zoo – Yunet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)  
+/// Model and resources: [OpenCV Zoo – Yunet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
 ///
 /// # Licensing
-/// - Model weights: [MIT License](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)  
+/// - Model weights: [MIT License](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
 /// - OpenCV reference implementation: [Apache 2.0 License](https://github.com/opencv/opencv/blob/4.x/LICENSE)
 /// # Reference:
 ///
@@ -175,8 +175,9 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
         &self,
         input: &I,
         confidence_threshold: f32,
+        nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
-        let nms_threshold = 0.3;
+        let nms_threshold = nms_threshold.unwrap_or(0.3);
         let device = &Default::default();
         let (tensor, sizes) = resize_tensor(input.to_tensor(device), Self::DIVISOR, Self::MAX_SIZE);
 
@@ -232,7 +233,7 @@ mod tests {
         let model: Yunet<NdArray> = Yunet::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img, 0.8);
+        let results = model.detect(&img, 0.8, None);
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }
