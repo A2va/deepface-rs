@@ -12,7 +12,7 @@ mod facenet512 {
 /// FaceNet512 face recognition model.
 /// Model and resources: [David Sandberg - Facenet](https://github.com/davidsandberg/facenet)
 ///
-/// Licensed under the [MIT License](https://github.com/davidsandberg/facenet/blob/master/LICENSE.md).  
+/// Licensed under the [MIT License](https://github.com/davidsandberg/facenet/blob/master/LICENSE.md).
 pub struct FaceNet512<B: Backend> {
     model: facenet512::Model<B>,
 }
@@ -42,7 +42,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
 
         // Facenet expects input shape as  [N, H, W, C]
         let tensor = tensor.permute([0, 2, 3, 1]);
-        let output = self.model.forward(tensor).squeeze(0);
+        let output = self.model.forward(tensor).squeeze();
         output
     }
 }

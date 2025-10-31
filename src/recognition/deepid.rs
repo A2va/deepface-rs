@@ -40,7 +40,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
         // DeepID expects input shape as [B, H, W, C]
         let tensor = tensor.permute([0, 2, 3, 1]);
 
-        let output = self.model.forward(tensor).squeeze(0);
+        let output = self.model.forward(tensor).squeeze();
         output
     }
 }
