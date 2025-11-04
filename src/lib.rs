@@ -82,3 +82,49 @@ fn to_tensor<B: Backend, T: Element>(
     // [H, W, C] -> [C, H, W]
     .permute([2, 0, 1])
 }
+
+use burn::vision::utils::ImageDimOrder;
+
+pub enum ImageTensor<B: Backend> {
+    /// dims: (height, width)
+    Hw(Tensor<B, 2>),
+    /// dims: (channels, height, width)
+    Chw(Tensor<B, 3>),
+    /// dims: (height, width, channels)
+    Hwc(Tensor<B, 3>),
+    /// dims: (batch_size, height, width)
+    Nhw(Tensor<B, 3>),
+    /// dims: (batch_size, channels, height, width)
+    Nchw(Tensor<B, 4>),
+    /// dims: (batch_size, height, width, channels)
+    Nhwc(Tensor<B, 4>),
+}
+
+impl<B: Backend> ImageTensor<B> {
+    pub fn to_dim_order(self, dim_order: ImageDimOrder) -> ImageTensor<B> {
+        match self {
+            ImageTensor::Hw(tensor) => match dim_order {
+                ImageDimOrder::Hw => ImageTensor::Hw(tensor),
+                ImageDimOrder::Chw => ImageTensor::Chw(tensor.unsqueeze::<3>()),
+                ImageDimOrder::Hwc => ImageTensor::Hwc(tensor.unsqueeze_dim(1)),
+                ImageDimOrder::Nhw => ImageTensor::Nhw(tensor.unsqueeze::<3>()),
+                ImageDimOrder::Nchw => ImageTensor::Nchw(tensor.unsqueeze::<4>()),
+                ImageDimOrder::Nhwc => ImageTensor::Nhwc(tensor.unsqueeze_dims(&[0, -1])),
+            },
+            _ => todo!("Implement other ImageTensor input variants"),
+        }
+    }
+}
+
+impl<B: Backend> From<ImageTensor<B>> for ImageDimOrder {
+    fn from(image_tensor: ImageTensor<B>) -> Self {
+        match image_tensor {
+            ImageTensor::Hw(_) => ImageDimOrder::Hw,
+            ImageTensor::Chw(_) => ImageDimOrder::Chw,
+            ImageTensor::Hwc(_) => ImageDimOrder::Hwc,
+            ImageTensor::Nhw(_) => ImageDimOrder::Nhw,
+            ImageTensor::Nchw(_) => ImageDimOrder::Nchw,
+            ImageTensor::Nhwc(_) => ImageDimOrder::Nhwc,
+        }
+    }
+}
