@@ -111,6 +111,16 @@ impl<B: Backend> ImageTensor<B> {
                 ImageDimOrder::Nchw => ImageTensor::Nchw(tensor.unsqueeze::<4>()),
                 ImageDimOrder::Nhwc => ImageTensor::Nhwc(tensor.unsqueeze_dims(&[0, -1])),
             },
+            ImageTensor::Chw(tensor) => match dim_order {
+                ImageDimOrder::Hw => panic!("not implemented"),
+                ImageDimOrder::Chw => ImageTensor::Chw(tensor),
+                ImageDimOrder::Hwc => ImageTensor::Hwc(tensor.permute([1, 2, 0])),
+                ImageDimOrder::Nhw => panic!("not implemented"),
+                ImageDimOrder::Nchw => ImageTensor::Nchw(tensor.unsqueeze::<4>()),
+                ImageDimOrder::Nhwc => {
+                    ImageTensor::Nhwc(tensor.permute([1, 2, 0]).unsqueeze::<4>())
+                }
+            },
             _ => todo!("Implement other ImageTensor input variants"),
         }
     }
