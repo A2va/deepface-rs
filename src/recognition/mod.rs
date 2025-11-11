@@ -8,12 +8,22 @@ pub mod deepid;
 #[cfg(feature = "deepid")]
 pub use crate::recognition::deepid::DeepID;
 
+pub mod verify;
+pub use verify::*;
+
 use crate::ImageToTensor;
 use burn::{
     nn::interpolate::Interpolate2dConfig,
     prelude::{Backend, Tensor, ToElement},
     tensor::s,
 };
+
+pub enum RecognitionModel {
+    #[cfg(feature = "deepid")]
+    DeepID,
+    #[cfg(feature = "facenet512")]
+    FaceNet512,
+}
 
 /// A trait that all face recognition models implements
 pub trait Recognizer<B: Backend> {
