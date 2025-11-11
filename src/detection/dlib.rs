@@ -48,7 +48,7 @@ impl<B: Backend> Detector<B> for Dlib<B> {
     /// See [`super::Detector`]
     fn detect<I: ImageToTensor<B>>(
         &self,
-        input: &I,
+        input: I,
         _confidence_threshold: f32,
         _nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {

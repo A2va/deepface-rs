@@ -31,7 +31,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
     /// If norm is not specified it will use [`NormalizationMethod::FaceNet`]
     fn embed<I: ImageToTensor<B>>(
         &self,
-        input: &I,
+        input: I,
         norm: Option<NormalizationMethod>,
     ) -> Tensor<B, 1> {
         let device = &B::Device::default();

@@ -205,7 +205,7 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
     /// See [`super::Detector`]
     fn detect<I: ImageToTensor<B>>(
         &self,
-        input: &I,
+        input: I,
         confidence_threshold: f32,
         nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
@@ -272,7 +272,7 @@ mod tests {
         let model: CenterFace<NdArray> = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img, 0.8, None);
+        let results = model.detect(img, 0.8, None);
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }

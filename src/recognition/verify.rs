@@ -168,7 +168,7 @@ fn angular_similarity<B: Backend, const D: usize>(
 
     let similarity = dot_product / denominator;
     // np.arccos(similarity) / np.pi
-    todo!("TODO Wait for burn to have arccos")
+    todo!("Wait for burn to have arccos")
 }
 
 fn euclidean_similarity<B: Backend, const D: usize>(

@@ -33,7 +33,7 @@ pub trait Recognizer<B: Backend> {
     /// Generate an embedding from an input image, applying the specified normalization method if provided.
     fn embed<I: ImageToTensor<B>>(
         &self,
-        input: &I,
+        input: I,
         norm: Option<NormalizationMethod>,
     ) -> Tensor<B, 1>;
 }

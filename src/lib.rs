@@ -30,19 +30,19 @@ use image::{DynamicImage, ImageBuffer, Rgb};
 pub trait ImageToTensor<B: Backend> {
     /// The ouput tensor format is [C, H, W], where C is the number of channel,
     /// H the height and W the width
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3>;
+    fn to_tensor(self, device: &<B as Backend>::Device) -> Tensor<B, 3>;
 }
 
 /// Converts a `DynamicImage` to a tensor of shape `[C, H, W]`, in RGB format.
 impl<B: Backend> ImageToTensor<B> for DynamicImage {
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+    fn to_tensor(self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
         let rgb_image = self.to_rgb8();
         rgb_image.to_tensor(device)
     }
 }
 
 impl<B: Backend> ImageToTensor<B> for ImageBuffer<Rgb<u8>, Vec<u8>> {
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+    fn to_tensor(self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
         // Convert image data to tensor
         let data = self.clone().into_raw();
 
@@ -59,7 +59,7 @@ impl<B: Backend> ImageToTensor<B> for ImageBuffer<Rgb<u8>, Vec<u8>> {
 /// Clones the tensor to the specified device. Assumes input is already `[C, H, W]`.
 impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
     // The tensor must be in 3 dimensions [C, H, W]
-    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+    fn to_tensor(self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
         self.clone().to_device(device)
     }
 }
