@@ -19,7 +19,7 @@ pub mod recognition;
 
 use burn::prelude::{Backend, Device};
 use burn::tensor::{Element, Tensor, TensorData};
-use image::DynamicImage;
+use image::{DynamicImage, RgbImage, SubImage};
 
 /// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`
 ///
@@ -37,9 +37,14 @@ pub trait ImageToTensor<B: Backend> {
 impl<B: Backend> ImageToTensor<B> for DynamicImage {
     fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
         let rgb_image = self.to_rgb8();
+        rgb_image.to_tensor(device)
+    }
+}
 
+impl<B: Backend> ImageToTensor<B> for RgbImage {
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
         // Convert image data to tensor
-        let data = rgb_image.into_raw();
+        let data = self.clone().into_raw();
 
         // Create tensor from image data [H, W, C] and reshape to [C, H, W]
         let tensor = to_tensor(
@@ -48,6 +53,20 @@ impl<B: Backend> ImageToTensor<B> for DynamicImage {
             device,
         );
         tensor
+    }
+}
+
+impl<B: Backend> ImageToTensor<B> for SubImage<&mut DynamicImage> {
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+        let img = DynamicImage::ImageRgba8(self.to_image());
+        img.to_tensor(device)
+    }
+}
+
+impl<B: Backend> ImageToTensor<B> for SubImage<&DynamicImage> {
+    fn to_tensor(&self, device: &<B as Backend>::Device) -> Tensor<B, 3> {
+        let img = DynamicImage::ImageRgba8(self.to_image());
+        img.to_tensor(device)
     }
 }
 
