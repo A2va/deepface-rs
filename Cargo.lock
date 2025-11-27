@@ -2771,6 +2771,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "generate-model-distance"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "csv",
+ "deepface",
+ "image 0.25.8",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

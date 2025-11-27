@@ -3,6 +3,12 @@ name = "deepface"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = [
+    ".",
+    "calibration",
+]
+
 [dependencies]
 image = "0.25"
 burn = {version = "0.19", features = ["ndarray", "vision"]}
@@ -19,8 +25,8 @@ burn-import = "0.19"
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-# default = ["yunet", "centerface", "dlib", "deepid", "facenet512"]
-default = []
+default = ["yunet", "centerface", "dlib", "deepid", "facenet512"]
+# default = []
 
 # Detection models
 yunet = []
@@ -32,7 +38,7 @@ deepid = []
 facenet512 = []
 
 [profile.dev]
-opt-level = 2     
+opt-level = 2
 
 # Detection examples
 [[example]]
@@ -52,5 +58,3 @@ required-features = ["deepid"]
 [[example]]
 name = "facenet"
 required-features = ["facenet512"]
-
-
