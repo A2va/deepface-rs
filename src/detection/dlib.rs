@@ -52,8 +52,7 @@ impl<B: Backend> Detector<B> for Dlib<B> {
         _confidence_threshold: f32,
         _nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
-        let device = &Default::default();
-        let tensor = input.to_tensor(device).int();
+        let tensor = input.to_tensor().int();
 
         // Dlib expects u8 tensor
         let tensor = tensor.cast(burn::tensor::DType::U8);

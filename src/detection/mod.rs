@@ -14,7 +14,7 @@ pub mod dlib;
 pub use crate::detection::dlib::Dlib;
 
 use crate::ImageToTensor;
-use image::{DynamicImage, ImageBuffer, Rgb, SubImage};
+use image::{DynamicImage, ImageBuffer, Rgb};
 
 /// A trait that all face dectector models implements
 pub trait Detector<B: Backend> {
@@ -22,9 +22,11 @@ pub trait Detector<B: Backend> {
     const DIVISOR: u32;
     /// Optional max side (e.g. 640 for Yunet)
     const MAX_SIZE: Option<u32>;
- 
+
     /// Detect faces in an input image, returning bounding boxes and landmarks.
     /// - `input`: The input image implementing `ImageToTensor`, tensor are also accepted
+    /// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
+    /// It is not possible to choose the device for an image, it will use the default one for that backend.
     /// - `confidence_threshold`: Minimum confidence to consider a detection valid
     /// - `nms_threshold`: Optional IoU threshold for non-maximum suppression
     fn detect<I: ImageToTensor<B>>(

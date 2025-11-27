@@ -31,8 +31,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
         input: &I,
         norm: Option<NormalizationMethod>,
     ) -> Tensor<B, 1> {
-        let device = &B::Device::default();
-        let tensor = input.to_tensor(device);
+        let tensor = input.to_tensor();
         let norm = norm.unwrap_or(NormalizationMethod::ZeroOne);
 
         let tensor = normalize_tensor(resize(tensor, Self::SHAPE), norm);

@@ -210,8 +210,7 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
         nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
         let nms_threshold = nms_threshold.unwrap_or(0.3);
-        let device = &Default::default();
-        let (tensor, sizes) = resize_tensor(input.to_tensor(device), Self::DIVISOR, Self::MAX_SIZE);
+        let (tensor, sizes) = resize_tensor(input.to_tensor(), Self::DIVISOR, Self::MAX_SIZE);
 
         let (heatmap, scale, offset, lms) = self.model.forward(tensor);
 
