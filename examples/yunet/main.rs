@@ -22,7 +22,7 @@ fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[
 fn main() {
     let model: Yunet<NdArray> = Yunet::new();
 
-    let img = image::open("dataset/one_face.jpg").unwrap();
+    let img = image::open("dataset/img1.jpg").unwrap();
 
     let results = model.detect(&img, 0.8, None);
 

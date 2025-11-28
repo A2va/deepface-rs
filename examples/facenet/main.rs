@@ -1,16 +1,34 @@
-use burn::backend::NdArray;
-use burn::tensor::linalg::cosine_similarity;
+use burn::{backend::NdArray, Tensor};
+use image::{DynamicImage, GenericImage};
+
+use deepface::detection::{Detector, Yunet};
+use deepface::recognition::{verify, DistanceMethod, RecognitionModel};
 use deepface::recognition::{FaceNet512, Recognizer};
 
-fn main() {
+fn crop(mut img: DynamicImage) -> Tensor<NdArray, 1> {
+    let model: Yunet<NdArray> = Yunet::new();
+    let results = model.detect(&img, 0.8, None);
+    let results = results.first().unwrap();
+
+    let subimg = img.sub_image(results.x, results.y, results.w, results.h);
+
     let model: FaceNet512<NdArray> = FaceNet512::new();
-    let img = image::open("dataset/cun.png").unwrap();
+    model.embed(&subimg, None)
+}
 
-    let result1 = model.embed(&img, None);
+fn main() {
+    let img = image::open("dataset/img1.jpg").unwrap();
+    let result1 = crop(img);
 
-    let img = image::open("dataset/image.png").unwrap();
-    let result2 = model.embed(&img, None);
+    let img = image::open("dataset/img2.jpg").unwrap();
+    let result2 = crop(img);
 
-    let simularity = cosine_similarity(result1, result2, -1, None);
-    println!("Distance: {}", simularity);
+    let d = verify(
+        result1,
+        result2,
+        RecognitionModel::FaceNet512,
+        DistanceMethod::Cosine,
+        None,
+    );
+    println!("Distance: {:?}", d);
 }
