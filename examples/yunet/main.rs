@@ -1,17 +1,10 @@
 use burn::backend::NdArray;
 use deepface::detection::{Detector, Yunet};
 
-use image::ImageBuffer;
+use image::RgbImage;
 
 // Assumes x1 <= x2 and y1 <= y2
-fn draw_rect(
-    image: &mut ImageBuffer<image::Rgb<u8>, Vec<u8>>,
-    x1: u32,
-    x2: u32,
-    y1: u32,
-    y2: u32,
-    color: &[u8; 3],
-) {
+fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[u8; 3]) {
     for x in x1..=x2 {
         let pixel = image.get_pixel_mut(x, y1);
         *pixel = image::Rgb(*color);

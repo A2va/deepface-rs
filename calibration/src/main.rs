@@ -1,10 +1,9 @@
 use anyhow::Context;
 
 use burn::prelude::Backend;
-use burn::tensor::Device;
 use burn::{backend::NdArray, Tensor};
 use deepface::ImageToTensor;
-use image::{DynamicImage, GenericImage, GenericImageView};
+use image::{DynamicImage, GenericImageView};
 
 use deepface::detection::{Detector, Yunet};
 use deepface::recognition::{verify, DistanceMethod, NormalizationMethod, RecognitionModel};

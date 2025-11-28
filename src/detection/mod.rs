@@ -14,7 +14,6 @@ pub mod dlib;
 pub use crate::detection::dlib::Dlib;
 
 use crate::ImageToTensor;
-use image::{DynamicImage, ImageBuffer, Rgb};
 
 /// A trait that all face dectector models implements
 pub trait Detector<B: Backend> {
@@ -48,13 +47,6 @@ pub struct FacialAreaRegion {
     pub nose: Option<(u32, u32)>,
     pub mouth_right: Option<(u32, u32)>,
     pub mouth_left: Option<(u32, u32)>,
-}
-
-pub struct DetectedFace {
-    // TODO Explore SubImage for the DetectedFace, also what is confidence if it's present in FacialAreaRegion
-    img: DynamicImage,
-    facial_area: FacialAreaRegion,
-    confidence: f32,
 }
 
 /// Represents resized dimensions and scale factors.
@@ -188,33 +180,4 @@ fn non_maximum_suppression(
     }
     bboxes.truncate(current_index);
     lms.truncate(current_index);
-}
-
-fn add_border(img: &DynamicImage) -> DynamicImage {
-    let img = img.to_rgb8();
-    let width = img.width();
-    let height = img.height();
-
-    let width_border = (0.5 * width as f32) as u32;
-    let height_border = (0.5 * height as f32) as u32;
-
-    // Create a new image with borders
-    let new_width = width + 2 * width_border;
-    let new_height = height + 2 * height_border;
-
-    let mut new_img = ImageBuffer::new(new_width, new_height);
-
-    // Fill the entire image with black (border color)
-    for pixel in new_img.pixels_mut() {
-        *pixel = Rgb([0, 0, 0]); // Black color for border
-    }
-
-    // Copy the original image to the center of the new image
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = img.get_pixel(x, y);
-            new_img.put_pixel(x + width_border, y + height_border, *pixel);
-        }
-    }
-    new_img.into()
 }

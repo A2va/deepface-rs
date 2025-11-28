@@ -1,13 +1,10 @@
 use std::marker::PhantomData;
 
 use super::{Detector, FacialAreaRegion, ImageToTensor};
-use burn::{
-    prelude::{Backend, Tensor},
-    tensor::Int,
-};
+use burn::prelude::Backend;
 use dlib_sys::{
     FaceDetector, FaceDetectorCnn, FaceDetectorTrait, ImageMatrix, LandmarkPredictor,
-    LandmarkPredictorTrait, Rectangle,
+    LandmarkPredictorTrait,
 };
 
 /// Dlib detector model type.
