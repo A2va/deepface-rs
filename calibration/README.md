@@ -17,7 +17,7 @@ The goal of these scripts is to reproduce DeepFace-style calibration for the dis
 ## How to reproduce the calibration values
 
 1. **Download the dataset**
-   Download the dataset from *(link)* and place it in the project root.
+   Download the dataset from [*here*](https://github.com/user-attachments/files/23835723/dataset.zip) and place it in the project root.
    The dataset must contain:
 
    * one folder per person, containing their images
