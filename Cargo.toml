@@ -12,7 +12,7 @@ members = [
 [dependencies]
 image = "0.25"
 burn = {version = "0.19", features = ["ndarray", "vision"]}
-dlib_sys = {package = "dlib", git = "https://github.com/a2va/dlib-rs", branch = "main", optional = true, features = ["embed-all"]}
+dlib_sys = {package = "dlib", git = "https://github.com/a2va/dlib-rs", rev = "4e8c8c8", optional = true, features = ["embed-all"]}
 
 thiserror = "1"
 tuple-conv = "1.0.1"

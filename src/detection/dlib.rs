@@ -42,7 +42,10 @@ impl<B: Backend> Detector<B> for Dlib<B> {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
 
-    /// See [`super::Detector`]
+    /// See [`super::Detector`].
+    ///
+    /// Unlike most models, which return a confidence score between 0 and 1,
+    /// Dlib can return a value lower than 0, up to a maximum of 3.5, based on this [issue](https://github.com/davisking/dlib/issues/761).
     fn detect<I: ImageToTensor<B>>(
         &self,
         input: &I,
@@ -119,7 +122,7 @@ impl<B: Backend> Detector<B> for Dlib<B> {
                 nose: nose.map(|x| (x[0] as u32, x[1] as u32)),
                 mouth_left: left_mouth.map(|x| (x[0] as u32, x[1] as u32)),
                 mouth_right: right_mouth.map(|x| (x[0] as u32, x[1] as u32)),
-                confidence: None,
+                confidence: Some(rect.confidence),
             };
             results.push(facial_area);
         }
