@@ -8,10 +8,10 @@ pub mod yunet;
 #[cfg(feature = "yunet")]
 pub use crate::detection::yunet::Yunet;
 
-#[cfg(feature = "dlib")]
+#[cfg(feature = "dlib-detection")]
 pub mod dlib;
-#[cfg(feature = "dlib")]
-pub use crate::detection::dlib::Dlib;
+#[cfg(feature = "dlib-detection")]
+pub use crate::detection::dlib::DlibDetection;
 
 use crate::ImageToTensor;
 
