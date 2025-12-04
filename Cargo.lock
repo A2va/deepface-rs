@@ -2025,9 +2025,9 @@ dependencies = [
 [[package]]
 name = "dlib"
 version = "0.3.2"
-source = "git+https://github.com/a2va/dlib-rs?branch=main#730082fff9f19d0bac450ba438f0327f1e997ec0"
+source = "git+https://github.com/a2va/dlib-rs?rev=4e8c8c8#4e8c8c8a94aa92190b3a3edff784c34c73e21303"
 dependencies = [
- "bzip2 0.4.4",
+ "bzip2 0.6.1",
  "cpp",
  "cpp_build",
  "image 0.24.9",
