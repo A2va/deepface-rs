@@ -20,12 +20,12 @@ pub enum DlibDetectorModel {
 /// # Licensing
 /// - Model weights: [Creative Commons CC0](https://github.com/davisking/dlib-models)
 /// - Dlib library: [Boost Software License](https://github.com/davisking/dlib/blob/master/LICENSE.txt)
-pub struct Dlib<B: Backend> {
+pub struct DlibDetection<B: Backend> {
     phantom: PhantomData<B>,
     model: DlibDetectorModel,
 }
 
-impl<B: Backend> Dlib<B> {
+impl<B: Backend> DlibDetection<B> {
     /// Create a new Dlib face detector.
     ///
     /// If the model type is not provided it defaults to the CNN model.
@@ -38,7 +38,7 @@ impl<B: Backend> Dlib<B> {
     }
 }
 
-impl<B: Backend> Detector<B> for Dlib<B> {
+impl<B: Backend> Detector<B> for DlibDetection<B> {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
 
@@ -122,7 +122,7 @@ impl<B: Backend> Detector<B> for Dlib<B> {
                 nose: nose.map(|x| (x[0] as u32, x[1] as u32)),
                 mouth_left: left_mouth.map(|x| (x[0] as u32, x[1] as u32)),
                 mouth_right: right_mouth.map(|x| (x[0] as u32, x[1] as u32)),
-                confidence: Some(rect.confidence),
+                confidence: Some(rect.confidence as f32),
             };
             results.push(facial_area);
         }

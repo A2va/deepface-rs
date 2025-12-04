@@ -2,7 +2,7 @@
 //! # Supported models
 //! Detection:
 //! * CenterFace
-//! * Dlib
+//! * Dlib (`dlib-detection`)
 //! * Yunet
 //!
 //! Recognition:
