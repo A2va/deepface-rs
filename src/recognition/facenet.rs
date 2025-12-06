@@ -27,7 +27,8 @@ impl<B: Backend<FloatElem = f32>> FaceNet512<B> {
 impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
     const SHAPE: (u32, u32) = (160, 160);
 
-    /// See [`super::Recognizer`]
+    /// See [`super::Recognizer`].
+    ///
     /// If norm is not specified it will use [`NormalizationMethod::FaceNet`]
     fn embed<I: ImageToTensor<B>>(
         &self,

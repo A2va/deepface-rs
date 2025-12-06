@@ -24,7 +24,8 @@ impl<B: Backend<FloatElem = f32>> DeepID<B> {
 impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
     const SHAPE: (u32, u32) = (47, 55);
 
-    /// See [`super::Recognizer`]
+    /// See [`super::Recognizer`].
+    ///
     /// If norm is not specified it will use [`NormalizationMethod::ZeroOne`]
     fn embed<I: ImageToTensor<B>>(
         &self,
