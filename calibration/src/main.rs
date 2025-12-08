@@ -2,11 +2,14 @@ use anyhow::Context;
 
 use burn::prelude::Backend;
 use burn::{backend::NdArray, Tensor};
+use deepface::detection::dlib::DlibDetectorModel;
 use deepface::ImageToTensor;
 use image::{DynamicImage, GenericImageView};
 
 use deepface::detection::{Detector, Yunet};
-use deepface::recognition::{verify, DistanceMethod, NormalizationMethod, RecognitionModel};
+use deepface::recognition::{
+    verify, DistanceMethod, DlibRecognition, NormalizationMethod, RecognitionModel,
+};
 use deepface::recognition::{DeepID, FaceNet512, Recognizer};
 
 use std::error::Error;
@@ -17,6 +20,7 @@ use std::{env, process};
 enum AnyModel<B: Backend> {
     DeepID(DeepID<B>),
     FaceNet512(FaceNet512<B>),
+    DlibRecognition(DlibRecognition<B>),
 }
 
 impl<B: Backend<FloatElem = f32>> Recognizer<B> for AnyModel<B> {
@@ -30,6 +34,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for AnyModel<B> {
         match self {
             AnyModel::DeepID(m) => m.embed(input, norm),
             AnyModel::FaceNet512(m) => m.embed(input, norm),
+            AnyModel::DlibRecognition(m) => m.embed(input, norm),
         }
     }
 }
@@ -38,6 +43,9 @@ fn get_model<B: Backend<FloatElem = f32>>(name: &str) -> AnyModel<B> {
     match name {
         "deepid" => AnyModel::DeepID(DeepID::new()),
         "facenet512" => AnyModel::FaceNet512(FaceNet512::new()),
+        "dlib-recognition" => {
+            AnyModel::DlibRecognition(DlibRecognition::new(DlibDetectorModel::Cnn))
+        }
         _ => panic!("Unknown model {name}"),
     }
 }
@@ -76,7 +84,8 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
 
     let rec_model_enum = match model_name.as_str() {
         "deepid" => RecognitionModel::DeepID,
-        "facenet512" | "facenet" => RecognitionModel::FaceNet512,
+        "facenet512" => RecognitionModel::FaceNet512,
+        "dlib-recognition" => RecognitionModel::DlibRecognition,
         _ => panic!("not valid model"), // fallback (shouldn't happen due to get_model)
     };
 

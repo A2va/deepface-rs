@@ -8,6 +8,11 @@ pub mod deepid;
 #[cfg(feature = "deepid")]
 pub use crate::recognition::deepid::DeepID;
 
+#[cfg(feature = "dlib-recognition")]
+pub mod dlib;
+#[cfg(feature = "dlib-recognition")]
+pub use crate::recognition::dlib::DlibRecognition;
+
 pub mod verify;
 pub use verify::*;
 
@@ -24,6 +29,8 @@ pub enum RecognitionModel {
     DeepID,
     #[cfg(feature = "facenet512")]
     FaceNet512,
+    #[cfg(feature = "dlib-recognition")]
+    DlibRecognition,
 }
 
 /// A trait that all face recognition models implements

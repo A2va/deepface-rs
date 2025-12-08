@@ -25,17 +25,18 @@ burn-import = "0.19"
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-default = ["yunet", "centerface", "dlib-detection", "deepid", "facenet512"]
+default = ["yunet", "centerface", "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
 # default = []
 
 # Detection models
 yunet = []
 centerface = []
-dlib-detection = ["dlib_sys"]
+dlib-detection = ["dlib_sys", "dlib_sys/embed-fd-nn", "dlib_sys/embed-lp"]
 
 # Recognition models
 deepid = []
 facenet512 = []
+dlib-recognition = ["dlib_sys", "dlib_sys/embed-fe-nn"]
 
 [profile.dev]
 opt-level = 2
@@ -58,3 +59,6 @@ required-features = ["deepid"]
 [[example]]
 name = "facenet"
 required-features = ["facenet512"]
+[[example]]
+name = "dlib-recognition"
+required-features = ["dlib-recognition"]

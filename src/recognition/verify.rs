@@ -62,6 +62,13 @@ impl RecognitionModel {
                 euclidean_l2: 0.8346,
                 angular: 0.0,
             },
+            #[cfg(feature = "dlib-recognition")]
+            RecognitionModel::DlibRecognition => ModelThreshold {
+                cosine: 0.051966,
+                euclidean: 0.506886,
+                euclidean_l2: 0.321005,
+                angular: 0.0,
+            },
         }
     }
 
@@ -126,6 +133,37 @@ impl RecognitionModel {
                     denorm_min_true: 36.123523,
                     denorm_max_false: 24.719646,
                     denorm_min_false: 1.288232,
+                },
+                DistanceMethod::Angular => todo!("missing acos support in burn"),
+            },
+            #[cfg(feature = "dlib-recognition")]
+            RecognitionModel::DlibRecognition => match distance {
+                DistanceMethod::Cosine => ModelConfidence {
+                    w: -4.692252,
+                    b: -1.661671,
+                    normalizer: 0.267421,
+                    denorm_max_true: 15.101393,
+                    denorm_min_true: 13.398194,
+                    denorm_max_false: 12.895675,
+                    denorm_min_false: 5.134501,
+                },
+                DistanceMethod::Euclidean => ModelConfidence {
+                    w: -7.434863,
+                    b: 2.756446,
+                    normalizer: 1.090731,
+                    denorm_max_true: 72.362367,
+                    denorm_min_true: 36.174570,
+                    denorm_max_false: 19.444710,
+                    denorm_min_false: 0.920814,
+                },
+                DistanceMethod::EuclideanL2 => ModelConfidence {
+                    w: -7.342223,
+                    b: 1.328352,
+                    normalizer: 0.731329,
+                    denorm_max_true: 52.653689,
+                    denorm_min_true: 30.163954,
+                    denorm_max_false: 25.704175,
+                    denorm_min_false: 1.727231,
                 },
                 DistanceMethod::Angular => todo!("missing acos support in burn"),
             },
