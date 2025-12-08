@@ -22,18 +22,36 @@ pub enum DlibDetectorModel {
 /// - Dlib library: [Boost Software License](https://github.com/davisking/dlib/blob/master/LICENSE.txt)
 pub struct DlibDetection<B: Backend> {
     phantom: PhantomData<B>,
-    model: DlibDetectorModel,
+    detection: Box<dyn FaceDetectorTrait>,
+    landmarks: LandmarkPredictor,
 }
 
 impl<B: Backend> DlibDetection<B> {
-    /// Create a new Dlib face detector.
+    /// Create a new Dlib face detector with a given model type.
     ///
-    /// If the model type is not provided it defaults to the CNN model.
+    /// Burn backend are not supported on this model.
     pub fn new(model: DlibDetectorModel) -> Self {
-        // let model = model.unwrap_or(DlibDetectorModel::Cnn);
+        let detector: Result<Box<dyn FaceDetectorTrait>, String> = match model {
+            DlibDetectorModel::Cnn => {
+                FaceDetectorCnn::default().map(|d| Box::new(d) as Box<dyn FaceDetectorTrait>)
+            }
+            DlibDetectorModel::Hog => {
+                Ok(Box::new(FaceDetector::default()) as Box<dyn FaceDetectorTrait>)
+            }
+        };
+
+        let Ok(detection) = detector else {
+            panic!("Error loading Face Detector.");
+        };
+
+        let Ok(landmarks) = LandmarkPredictor::default() else {
+            panic!("Error loading Landmark Predictor");
+        };
+
         Self {
             phantom: PhantomData,
-            model: model,
+            detection: detection,
+            landmarks: landmarks,
         }
     }
 }
@@ -66,31 +84,14 @@ impl<B: Backend> Detector<B> for DlibDetection<B> {
         let (width, height) = (tensor.dims()[1], tensor.dims()[0]);
         let matrix = unsafe { ImageMatrix::new(width, height, ptr) };
 
-        let detector: Result<Box<dyn FaceDetectorTrait>, String> = match self.model {
-            DlibDetectorModel::Cnn => {
-                FaceDetectorCnn::default().map(|d| Box::new(d) as Box<dyn FaceDetectorTrait>)
-            }
-            DlibDetectorModel::Hog => {
-                Ok(Box::new(FaceDetector::default()) as Box<dyn FaceDetectorTrait>)
-            }
-        };
-
-        let Ok(detector) = detector else {
-            panic!("Error loading Face Detector");
-        };
-
-        let Ok(landmarks) = LandmarkPredictor::default() else {
-            panic!("Error loading Landmark Predictor");
-        };
-
-        let dets = detector.face_locations(&matrix);
+        let dets = self.detection.face_locations(&matrix);
 
         let mut results = Vec::new();
         for i in 0..dets.len() {
             let det = dets.get(i);
             let rect = det.unwrap();
 
-            let lms = landmarks.face_landmarks(&matrix, rect);
+            let lms = self.landmarks.face_landmarks(&matrix, rect);
 
             // Reference for the indexes
             // https://github.com/Abdelrhman-Amr-98/Head-Pose-Estimation
