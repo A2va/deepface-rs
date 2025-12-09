@@ -9,8 +9,8 @@ use image::{DynamicImage, GenericImageView};
 use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};
 
 use deepface::detection::{Detector, Yunet};
-use deepface::metrics::{verify, DistanceMethod};
-use deepface::recognition::{NormalizationMethod, RecognitionModel};
+use deepface::metrics::{distance, DistanceMethod};
+use deepface::recognition::NormalizationMethod;
 
 use std::error::Error;
 use std::fs::File;
@@ -82,13 +82,6 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
     let detector: Yunet<NdArray> = Yunet::new();
     let model = get_model(&model_name);
 
-    let rec_model_enum = match model_name.as_str() {
-        "deepid" => RecognitionModel::DeepID,
-        "facenet512" => RecognitionModel::FaceNet512,
-        "dlib-recognition" => RecognitionModel::DlibRecognition,
-        _ => panic!("not valid model"), // fallback (shouldn't happen due to get_model)
-    };
-
     for (i, result) in rdr.records().enumerate() {
         let mut record = result?;
 
@@ -106,30 +99,9 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
         ))?;
         let emb2 = embed(img2, &detector, &model);
 
-        let cosine = verify(
-            emb1.clone(),
-            emb2.clone(),
-            rec_model_enum,
-            DistanceMethod::Cosine,
-            None,
-        )
-        .distance;
-        let euclid = verify(
-            emb1.clone(),
-            emb2.clone(),
-            rec_model_enum,
-            DistanceMethod::Euclidean,
-            None,
-        )
-        .distance;
-        let euclid_l2 = verify(
-            emb1.clone(),
-            emb2.clone(),
-            rec_model_enum,
-            DistanceMethod::EuclideanL2,
-            None,
-        )
-        .distance;
+        let cosine = distance(emb1.clone(), emb2.clone(), DistanceMethod::Cosine);
+        let euclid = distance(emb1.clone(), emb2.clone(), DistanceMethod::Euclidean);
+        let euclid_l2 = distance(emb1.clone(), emb2.clone(), DistanceMethod::EuclideanL2);
 
         record.push_field(&cosine.to_string());
         record.push_field(&euclid.to_string());
