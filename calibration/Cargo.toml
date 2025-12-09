@@ -7,5 +7,5 @@ edition = "2021"
 anyhow = "1.0"
 csv = "1.2"
 image = "0.25"
-deepface = { path = "..", features = ["yunet", "deepid", "facenet512"] }
+deepface = { path = "..", features = ["yunet", "deepid", "facenet512", "dlib-recognition"] }
 burn = { version = "0.19", features = ["ndarray"] }

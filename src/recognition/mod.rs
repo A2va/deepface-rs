@@ -13,9 +13,6 @@ pub mod dlib;
 #[cfg(feature = "dlib-recognition")]
 pub use crate::recognition::dlib::DlibRecognition;
 
-pub mod verify;
-pub use verify::*;
-
 use crate::ImageToTensor;
 use burn::{
     nn::interpolate::Interpolate2dConfig,

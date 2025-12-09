@@ -17,6 +17,8 @@
 pub mod detection;
 pub mod recognition;
 
+pub mod metrics;
+
 use burn::prelude::{Backend, Device};
 use burn::tensor::{Element, Tensor, TensorData};
 use image::{DynamicImage, RgbImage, SubImage};

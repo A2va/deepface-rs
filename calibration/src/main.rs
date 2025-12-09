@@ -6,11 +6,11 @@ use deepface::detection::dlib::DlibDetectorModel;
 use deepface::ImageToTensor;
 use image::{DynamicImage, GenericImageView};
 
+use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};
+
 use deepface::detection::{Detector, Yunet};
-use deepface::recognition::{
-    verify, DistanceMethod, DlibRecognition, NormalizationMethod, RecognitionModel,
-};
-use deepface::recognition::{DeepID, FaceNet512, Recognizer};
+use deepface::metrics::{verify, DistanceMethod};
+use deepface::recognition::{NormalizationMethod, RecognitionModel};
 
 use std::error::Error;
 use std::fs::File;

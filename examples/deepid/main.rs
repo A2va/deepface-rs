@@ -2,8 +2,8 @@ use burn::{backend::NdArray, Tensor};
 use image::{DynamicImage, GenericImage};
 
 use deepface::detection::{Detector, Yunet};
-use deepface::recognition::{verify, DistanceMethod, RecognitionModel};
-use deepface::recognition::{DeepID, Recognizer};
+use deepface::metrics::{verify, DistanceMethod};
+use deepface::recognition::{DeepID, RecognitionModel, Recognizer};
 
 fn embed(mut img: DynamicImage) -> Tensor<NdArray, 1> {
     let model: Yunet<NdArray> = Yunet::new();
