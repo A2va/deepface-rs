@@ -2,7 +2,7 @@ use anyhow::Context;
 
 use burn::prelude::Backend;
 use burn::{backend::NdArray, Tensor};
-use deepface::detection::dlib::DlibDetectorModel;
+use deepface::DlibDetectorModel;
 use deepface::ImageToTensor;
 use image::{DynamicImage, GenericImageView};
 

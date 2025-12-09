@@ -103,3 +103,13 @@ pub fn to_tensor<B: Backend, T: Element>(
     // [H, W, C] -> [C, H, W]
     .permute([2, 0, 1])
 }
+
+// This was enum was moved here because both the detection and recognition model of dlib needs it.
+#[cfg(any(feature = "dlib-detection", feature = "dlib-recognition"))]
+/// Dlib detector model type.
+pub enum DlibDetectorModel {
+    /// Based on the Convolutional Neural Network (CNN).
+    Cnn,
+    /// Based on the Histogram of Oriented Gradients (HOG).
+    Hog,
+}

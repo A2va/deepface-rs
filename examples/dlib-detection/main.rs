@@ -1,6 +1,8 @@
 use burn::backend::NdArray;
-use deepface::detection::{dlib::DlibDetectorModel, Detector, DlibDetection};
 use image::RgbImage;
+
+use deepface::detection::{Detector, DlibDetection};
+use deepface::DlibDetectorModel;
 
 // Assumes x1 <= x2 and y1 <= y2
 fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[u8; 3]) {

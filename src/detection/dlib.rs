@@ -1,19 +1,13 @@
 use std::marker::PhantomData;
 
-use super::{Detector, FacialAreaRegion, ImageToTensor};
 use burn::prelude::Backend;
 use dlib_sys::{
     FaceDetector, FaceDetectorCnn, FaceDetectorTrait, ImageMatrix, LandmarkPredictor,
     LandmarkPredictorTrait,
 };
 
-/// Dlib detector model type.
-pub enum DlibDetectorModel {
-    /// Based on the Convolutional Neural Network (CNN).
-    Cnn,
-    // Based on the Histogram of Oriented Gradients (HOG).
-    Hog,
-}
+use super::{Detector, FacialAreaRegion};
+use crate::{DlibDetectorModel, ImageToTensor};
 
 /// Dlib face detector using the CNN model.
 ///

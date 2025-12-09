@@ -1,9 +1,9 @@
 use burn::{backend::NdArray, Tensor};
-use deepface::detection::dlib::DlibDetectorModel;
 use image::DynamicImage;
 
 use deepface::metrics::{verify, DistanceMethod};
 use deepface::recognition::{DlibRecognition, RecognitionModel, Recognizer};
+use deepface::DlibDetectorModel;
 
 fn embed(img: DynamicImage) -> Tensor<NdArray, 1> {
     let model: DlibRecognition<NdArray> = DlibRecognition::new(DlibDetectorModel::Hog);

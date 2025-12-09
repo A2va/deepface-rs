@@ -6,10 +6,8 @@ use dlib_sys::{
     ImageMatrix, LandmarkPredictor, LandmarkPredictorTrait,
 };
 
-use crate::detection::dlib::DlibDetectorModel;
-
 use super::{NormalizationMethod, Recognizer};
-use crate::ImageToTensor;
+use crate::{DlibDetectorModel, ImageToTensor};
 
 /// Dlib face recognition using CNN model.
 ///
