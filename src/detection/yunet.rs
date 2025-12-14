@@ -2,8 +2,8 @@ use burn::{prelude::Backend, tensor::Tensor};
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, Landmarks,
-    ResizedDimensions,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, DetectorMetadata,
+    FacialAreaRegion, Landmarks, ResizedDimensions,
 };
 use crate::ImageToTensor;
 
@@ -166,10 +166,12 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
+impl<B: Backend<FloatElem = f32>> DetectorMetadata for Yunet<B> {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = Some(640);
+}
 
+impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
     /// See [`super::Detector`]
     fn detect<I: ImageToTensor<B>>(
         &self,

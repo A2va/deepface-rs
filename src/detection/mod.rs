@@ -15,13 +15,16 @@ pub use crate::detection::dlib::DlibDetection;
 
 use crate::ImageToTensor;
 
-/// A trait that all face dectector models implements
-pub trait Detector<B: Backend> {
+/// Internal trait to handle detector metadata.
+trait DetectorMetadata {
     /// The size‐rounding multiple (e.g. 32)
     const DIVISOR: u32;
     /// Optional max side (e.g. 640 for Yunet)
     const MAX_SIZE: Option<u32>;
+}
 
+/// A trait that all face dectector models implements
+pub trait Detector<B: Backend> {
     /// Detect faces in an input image, returning bounding boxes and landmarks.
     /// - `input`: The input image implementing `ImageToTensor`, tensor are also accepted
     /// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
@@ -36,6 +39,7 @@ pub trait Detector<B: Backend> {
     ) -> Vec<FacialAreaRegion>;
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct FacialAreaRegion {
     pub x: u32,
     pub y: u32,

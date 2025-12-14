@@ -6,7 +6,7 @@ use dlib_sys::{
     LandmarkPredictorTrait,
 };
 
-use super::{Detector, FacialAreaRegion};
+use super::{Detector, DetectorMetadata, FacialAreaRegion};
 use crate::{DlibDetectorModel, ImageToTensor};
 
 /// Dlib face detector using the CNN model.
@@ -50,10 +50,12 @@ impl<B: Backend> DlibDetection<B> {
     }
 }
 
-impl<B: Backend> Detector<B> for DlibDetection<B> {
+impl<B: Backend<FloatElem = f32>> DetectorMetadata for DlibDetection<B> {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
+}
 
+impl<B: Backend> Detector<B> for DlibDetection<B> {
     /// See [`super::Detector`].
     ///
     /// Unlike most models, which return a confidence score between 0 and 1,

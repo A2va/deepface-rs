@@ -1,8 +1,8 @@
 use burn::{prelude::Backend, tensor::Tensor};
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, FacialAreaRegion, Landmarks,
-    ResizedDimensions,
+    non_maximum_suppression, resize_tensor, BoundingBox, Detector, DetectorMetadata,
+    FacialAreaRegion, Landmarks, ResizedDimensions,
 };
 use crate::ImageToTensor;
 
@@ -198,10 +198,12 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
+impl<B: Backend<FloatElem = f32>> DetectorMetadata for CenterFace<B> {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
+}
 
+impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
     /// See [`super::Detector`]
     fn detect<I: ImageToTensor<B>>(
         &self,
