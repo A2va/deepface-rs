@@ -1,4 +1,4 @@
-use super::{normalize_tensor, resize, NormalizationMethod, Recognizer};
+use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
 use crate::ImageToTensor;
 use burn::{prelude::Backend, tensor::Tensor};
 
@@ -24,9 +24,11 @@ impl<B: Backend<FloatElem = f32>> FaceNet512<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
+impl<B: Backend<FloatElem = f32>> RecognizerMetadata for FaceNet512<B> {
     const SHAPE: (u32, u32) = (160, 160);
+}
 
+impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::FaceNet`]

@@ -30,11 +30,14 @@ pub enum RecognitionModel {
     DlibRecognition,
 }
 
-/// A trait that all face recognition models implements
-pub trait Recognizer<B: Backend> {
+/// Internal trait to handle recognizer metadata.
+trait RecognizerMetadata {
     /// The expected input shape of the model.
     const SHAPE: (u32, u32);
+}
 
+/// A trait that all face recognition models implements
+pub trait Recognizer<B: Backend> {
     /// Generate an embedding from an input image, applying the specified normalization method if provided.
     /// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
     /// It is not possible to choose the device for an image, it will use the default one for that backend.

@@ -6,7 +6,7 @@ use dlib_sys::{
     ImageMatrix, LandmarkPredictor, LandmarkPredictorTrait,
 };
 
-use super::{NormalizationMethod, Recognizer};
+use super::{NormalizationMethod, Recognizer, RecognizerMetadata};
 use crate::{DlibDetectorModel, ImageToTensor};
 
 /// Dlib face recognition using CNN model.
@@ -19,6 +19,10 @@ pub struct DlibRecognition<B: Backend> {
     detection: Box<dyn FaceDetectorTrait>,
     landmarks: LandmarkPredictor,
     recognition: FaceEncoderNetwork,
+}
+
+impl<B: Backend<FloatElem = f32>> RecognizerMetadata for DlibRecognition<B> {
+    const SHAPE: (u32, u32) = (0, 0);
 }
 
 impl<B: Backend> DlibRecognition<B> {
@@ -60,8 +64,6 @@ impl<B: Backend> DlibRecognition<B> {
 }
 
 impl<B: Backend> Recognizer<B> for DlibRecognition<B> {
-    const SHAPE: (u32, u32) = (0, 0);
-
     /// See [`super::Recognizer`].
     ///
     /// In this model the norm parameter is not used.

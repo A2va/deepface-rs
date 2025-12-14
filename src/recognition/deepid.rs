@@ -1,4 +1,4 @@
-use super::{normalize_tensor, resize, NormalizationMethod, Recognizer};
+use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
 use crate::ImageToTensor;
 use burn::{prelude::Backend, tensor::Tensor};
 
@@ -21,9 +21,11 @@ impl<B: Backend<FloatElem = f32>> DeepID<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
+impl<B: Backend<FloatElem = f32>> RecognizerMetadata for DeepID<B> {
     const SHAPE: (u32, u32) = (47, 55);
+}
 
+impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::ZeroOne`]
