@@ -26,14 +26,14 @@ impl RecognitionModel {
                 cosine: 0.0044,
                 euclidean: 27.9795,
                 euclidean_l2: 0.1075,
-                angular: 0.0,
+                angular: 0.029881,
             },
             #[cfg(feature = "facenet512")]
             RecognitionModel::FaceNet512 => ModelThreshold {
                 cosine: 0.3754,
                 euclidean: 17.3474,
                 euclidean_l2: 0.8346,
-                angular: 0.0,
+                angular: 0.2755,
             },
             #[cfg(feature = "dlib-recognition")]
             RecognitionModel::DlibRecognition => ModelThreshold {
@@ -77,7 +77,15 @@ impl RecognitionModel {
                     denorm_max_false: 0.228943,
                     denorm_min_false: 0.199848,
                 },
-                DistanceMethod::Angular => todo!("missing acos support in burn"),
+                DistanceMethod::Angular => ModelConfidence {
+                    w: -0.070299,
+                    b: -6.116134,
+                    normalizer: 0.230753,
+                    denorm_max_true: 0.219750,
+                    denorm_min_true: 0.219750,
+                    denorm_max_false: 0.219747,
+                    denorm_min_false: 0.216675,
+                },
             },
             #[cfg(feature = "facenet512")]
             RecognitionModel::FaceNet512 => match distance {
@@ -108,7 +116,15 @@ impl RecognitionModel {
                     denorm_max_false: 24.719646,
                     denorm_min_false: 1.288232,
                 },
-                DistanceMethod::Angular => todo!("missing acos support in burn"),
+                DistanceMethod::Angular => ModelConfidence {
+                    w: -7.152698,
+                    b: 0.746744,
+                    normalizer: 0.602584,
+                    denorm_max_true: 45.973379,
+                    denorm_min_true: 24.602752,
+                    denorm_max_false: 19.465000,
+                    denorm_min_false: 2.756226,
+                },
             },
             #[cfg(feature = "dlib-recognition")]
             RecognitionModel::DlibRecognition => match distance {
@@ -139,7 +155,7 @@ impl RecognitionModel {
                     denorm_max_false: 25.704175,
                     denorm_min_false: 1.727231,
                 },
-                DistanceMethod::Angular => todo!("missing acos support in burn"),
+                DistanceMethod::Angular => todo!("not supported"),
             },
             _ => unreachable!("no recognition model enabled"),
         }
