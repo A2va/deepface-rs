@@ -1,5 +1,6 @@
 use burn::prelude::{Backend, ElementConversion, Tensor, ToElement};
-use burn::tensor::linalg::{cosine_similarity, l2_norm, DEFAULT_EPSILON};
+use burn::tensor::linalg::{cosine_similarity, l2_norm};
+use burn::tensor::FloatDType;
 
 /// All distance methods supported in [`distance`].
 #[derive(Clone, Copy)]
@@ -17,7 +18,14 @@ fn angular_distance<B: Backend, const D: usize>(
     dim: i32,
     eps: Option<B::FloatElem>,
 ) -> Tensor<B, D> {
-    let eps = eps.unwrap_or_else(|| B::FloatElem::from_elem(DEFAULT_EPSILON));
+    let eps = eps.unwrap_or_else(|| {
+        let min_positive = x1
+            .dtype()
+            .finfo()
+            .unwrap_or(FloatDType::F32.finfo())
+            .min_positive;
+        B::FloatElem::from_elem(min_positive)
+    });
 
     // Convert negative dimension to positive
     let dim_idx = if dim < 0 { D as i32 + dim } else { dim } as usize;
@@ -54,7 +62,14 @@ fn l2_normalize<B: Backend, const D: usize>(
     dim: i32,
     eps: Option<B::FloatElem>,
 ) -> Tensor<B, D> {
-    let eps = eps.unwrap_or_else(|| B::FloatElem::from_elem(DEFAULT_EPSILON));
+    let eps = eps.unwrap_or_else(|| {
+        let min_positive = x
+            .dtype()
+            .finfo()
+            .unwrap_or(FloatDType::F32.finfo())
+            .min_positive;
+        B::FloatElem::from_elem(min_positive)
+    });
     // Convert negative dimension to positive
     let dim_idx = if dim < 0 { D as i32 + dim } else { dim } as usize;
 

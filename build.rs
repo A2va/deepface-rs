@@ -1,4 +1,4 @@
-use burn_import::onnx::{ModelGen, RecordType};
+use burn_onnx::{LoadStrategy, ModelGen};
 
 use std::path::Path;
 
@@ -20,8 +20,7 @@ fn burn_onnx_converter<P: AsRef<Path>>(path: P, out_dir: &str) {
     ModelGen::new()
         .input(path.as_ref().to_str().unwrap())
         .out_dir(out_dir)
-        .record_type(RecordType::Bincode)
-        .embed_states(false)
+        .load_strategy(LoadStrategy::Embedded)
         .run_from_script();
 }
 
