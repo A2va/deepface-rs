@@ -71,7 +71,7 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
     headers.push_field("cosine");
     headers.push_field("euclidean");
     headers.push_field("euclidean_l2");
-    // headers.push_fied("angular"); // not ready
+    headers.push_field("angular");
 
     let file = File::create(format!("{model_name}.csv"))?;
     let mut wtr = csv::Writer::from_writer(file);
@@ -100,10 +100,12 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
         let cosine = distance(emb1.clone(), emb2.clone(), DistanceMethod::Cosine);
         let euclid = distance(emb1.clone(), emb2.clone(), DistanceMethod::Euclidean);
         let euclid_l2 = distance(emb1.clone(), emb2.clone(), DistanceMethod::EuclideanL2);
+        let angular = distance(emb1.clone(), emb2.clone(), DistanceMethod::Angular);
 
         record.push_field(&cosine.to_string());
         record.push_field(&euclid.to_string());
         record.push_field(&euclid_l2.to_string());
+        record.push_field(&angular.to_string());
 
         wtr.write_record(&record)?;
         println!("{i}");

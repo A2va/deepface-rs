@@ -163,7 +163,7 @@ def print_rust_thresholds(thresholds: Dict[str, float]):
             cosine: {thresholds["cosine"]:.6f},
             euclidean: {thresholds["euclidean"]:.6f},
             euclidean_l2: {thresholds["euclidean_l2"]:.6f},
-            angular: 0.0,
+            angular: {thresholds["angular"]:.6f},
         }},
     """).strip()
     )
@@ -176,6 +176,7 @@ def print_rust_confidence_table(conf: Dict[str, Any]):
         "cosine": "DistanceMethod::Cosine",
         "euclidean": "DistanceMethod::Euclidean",
         "euclidean_l2": "DistanceMethod::EuclideanL2",
+        "angular": "DistanceMethod::Angular",
     }
 
     for key, variant in mapping.items():
@@ -199,7 +200,7 @@ def main(args):
     df = pd.read_csv(args.csv)
     recognition_model = Path(args.csv).stem
 
-    metrics = ["cosine", "euclidean", "euclidean_l2"]
+    metrics = ["cosine", "euclidean", "euclidean_l2", "angular"]
     threshold_metric = {}
     confidence_metrics = {}
 

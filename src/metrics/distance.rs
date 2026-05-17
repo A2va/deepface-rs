@@ -39,10 +39,9 @@ fn angular_distance<B: Backend, const D: usize>(
 
     // Calculate the denominator (product of the norms) with epsilon to avoid division by zero
     let denominator = norm_x1.clamp_min(eps) * norm_x2.clamp_min(eps);
-
     let similarity = dot_product / denominator;
-    // np.arccos(similarity) / np.pi
-    todo!("TODO Wait for burn to have arccos")
+
+    return similarity.acos() / core::f32::consts::PI;
 }
 
 fn euclidean_similarity<B: Backend, const D: usize>(
