@@ -24,8 +24,6 @@ enum AnyModel<B: Backend> {
 }
 
 impl<B: Backend<FloatElem = f32>> Recognizer<B> for AnyModel<B> {
-    const SHAPE: (u32, u32) = (0, 0); // Can’t have a true constant here
-
     fn embed<I: ImageToTensor<B>>(
         &self,
         input: &I,
