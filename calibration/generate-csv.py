@@ -40,7 +40,7 @@ import pandas as pd
 
 
 def main(args):
-    folder = Path(args.folder)
+    folder = Path.cwd().joinpath(args.folder)
 
     idendities = {}
 
