@@ -15,6 +15,8 @@ pub use crate::detection::dlib::DlibDetection;
 
 use crate::ImageToTensor;
 
+mod align;
+
 /// Internal trait to handle detector metadata.
 trait DetectorMetadata {
     /// The size‐rounding multiple (e.g. 32)
