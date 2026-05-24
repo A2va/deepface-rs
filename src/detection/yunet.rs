@@ -164,18 +164,10 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
         non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
         (boxes, lms)
     }
-}
 
-impl<B: Backend<FloatElem = f32>> DetectorMetadata for Yunet<B> {
-    const DIVISOR: u32 = 32;
-    const MAX_SIZE: Option<u32> = Some(640);
-}
-
-impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
-    /// See [`super::Detector`]
-    fn detect<I: ImageToTensor<B>>(
+    fn detect_impl(
         &self,
-        input: &I,
+        input: Tensor<B, 3>,
         confidence_threshold: f32,
         nms_threshold: Option<f32>,
     ) -> Vec<FacialAreaRegion> {
@@ -220,6 +212,82 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
         }
 
         results
+    }
+}
+
+impl<B: Backend<FloatElem = f32>> DetectorMetadata for Yunet<B> {
+    const DIVISOR: u32 = 32;
+    const MAX_SIZE: Option<u32> = Some(640);
+}
+
+impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
+    /// See [`super::Detector`]
+    fn detect<I: ImageToTensor<B>>(
+        &self,
+        input: &I,
+        confidence_threshold: f32,
+        nms_threshold: Option<f32>,
+    ) -> Vec<FacialAreaRegion> {
+        let img = input.to_tensor();
+        let [c, h, w] = img.dims();
+
+        let align = true;
+        let max_faces = Some(5);
+
+        // If faces are close to the upper boundary, alignment moves them outside.
+        // Add a black border around the image to avoid this.
+        let height_border = if align { h / 2 } else { 0 };
+        let width_border = if align { w / 2 } else { 0 };
+
+        let mut working_img = img.clone();
+
+        if align {
+            let device = working_img.device();
+            let mut bordered =
+                Tensor::<B, 3>::zeros([c, h + 2 * height_border, w + 2 * width_border], &device);
+            bordered = bordered.slice_assign(
+                [
+                    0..c,
+                    height_border..height_border + h,
+                    width_border..width_border + w,
+                ],
+                working_img,
+            );
+            working_img = bordered;
+        }
+
+        // ---------------------------------------------------------
+        // TODO: The model detection part is already done on your end.
+        // Insert your `face_detector.detect_faces(&working_img)` here!
+        // ---------------------------------------------------------
+        let mut facial_areas: Vec<FacialAreaRegion> =
+            self.detect_impl(working_img.clone(), confidence_threshold, nms_threshold); // Replace with actual detection
+
+        if let Some(max_f) = max_faces {
+            if max_f < facial_areas.len() {
+                // Sort by facial_area.w * facial_area.h descending
+                facial_areas.sort_by(|a, b| {
+                    let area_a = a.w * a.h;
+                    let area_b = b.w * b.h;
+                    area_b.cmp(&area_a)
+                });
+                facial_areas.truncate(max_f);
+            }
+        }
+
+        facial_areas
+            .into_iter()
+            .map(|facial_area| {
+                super::align::extract_face(
+                    facial_area,
+                    &working_img,
+                    align,
+                    0,
+                    width_border as u32,
+                    height_border as u32,
+                )
+            })
+            .collect()
     }
 }
 
