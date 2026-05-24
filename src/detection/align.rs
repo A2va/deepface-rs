@@ -3,6 +3,7 @@ use burn::tensor::grid::affine_grid_2d;
 use burn::tensor::ops::{GridSampleOptions, GridSamplePaddingMode, InterpolateMode};
 use burn::tensor::Tensor;
 use burn::vision::utils::TensorDisplayOptions;
+use burn::vision::Transform2D;
 
 use super::FacialAreaRegion;
 
@@ -212,32 +213,64 @@ pub fn align_img_wrt_eyes<B: Backend>(
         return (img.clone(), 0.0);
     }
 
+    // DEBUG: Check if landmarks are actually being provided by your detector!
+    println!(
+        "DEBUG - Alignment Eyes -> Left: {:?}, Right: {:?}",
+        left_eye, right_eye
+    );
+
     if let (Some(le), Some(re)) = (left_eye, right_eye) {
         let dy = le.1 as f32 - re.1 as f32;
         let dx = le.0 as f32 - re.0 as f32;
+
+        // Prevent NaN if the points are identical
+        if dx == 0.0 && dy == 0.0 {
+            return (img.clone(), 0.0);
+        }
+
         let angle_rad = dy.atan2(dx);
         let angle_deg = angle_rad.to_degrees();
+        println!("DEBUG - Computed Rotation Angle: {} degrees", angle_deg);
 
         let cos_a = angle_rad.cos();
         let sin_a = angle_rad.sin();
 
-        let theta_data: [[[f32; 3]; 2]; 1] = [[[cos_a, -sin_a, 0.0], [sin_a, cos_a, 0.0]]];
+        let h_f32 = h as f32;
+        let w_f32 = w as f32;
+
+        // Burn's affine grid maps Target -> Source in normalized [-1, 1] space.
+        // We MUST multiply the sine terms by the aspect ratio to prevent the image
+        // from skewing/stretching if the crop is a rectangle (which it usually is).
+        let theta_data: [[[f32; 3]; 2]; 1] = [[
+            [cos_a, -sin_a * (h_f32 / w_f32), 0.0],
+            [sin_a * (w_f32 / h_f32), cos_a, 0.0],
+        ]];
 
         let device = img.device();
-        let theta = Tensor::<B, 3>::from_data(theta_data, &device);
+        // DeepFace uses OpenCV which rotates the image Counter-Clockwise.
+        // Burn's grid_sample maps the Target grid back to the Source grid.
+        // To visually rotate an image Counter-Clockwise, we must rotate the grid Clockwise.
+        // Transform2D::rotation applies a CCW rotation, so we negate the angle.
+        let theta = -angle_rad;
 
+        // Correct for Aspect Ratio so non-square crops do not stretch or squish.
+        let aspect_ratio = w as f32 / h as f32;
+
+        let t_fwd = Transform2D::scale(aspect_ratio, 1.0, 0.0, 0.0);
+        let t_rot = Transform2D::rotation(theta, 0.0, 0.0);
+        let t_inv = Transform2D::scale(1.0 / aspect_ratio, 1.0, 0.0, 0.0);
+
+        // `composed` applies right-to-left: t_inv * t_rot * t_fwd
+        let transform = Transform2D::composed([t_inv, t_rot, t_fwd]);
+
+        // Transform2D requires a 4D tensor [Batch, Channels, Height, Width]
         let img_4d = img.clone().reshape([1, c, h, w]);
-
-        let grid = affine_grid_2d(theta, [1, c, h, w]);
-        let options = GridSampleOptions::new(InterpolateMode::Bilinear)
-            .with_padding_mode(GridSamplePaddingMode::Zeros)
-            .with_align_corners(false);
-
-        let aligned_4d = img_4d.grid_sample_2d(grid, options);
+        let aligned_4d = transform.transform(img_4d);
         let aligned_3d = aligned_4d.reshape([c, h, w]);
 
         (aligned_3d, angle_deg)
     } else {
+        println!("DEBUG - Left or Right eye was None, skipping rotation.");
         (img.clone(), 0.0)
     }
 }
