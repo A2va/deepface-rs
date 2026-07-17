@@ -1,4 +1,7 @@
-use burn::tensor::Tensor;
+use burn::{
+    tensor::{Int, Tensor, TensorData},
+    vision::{Nms, NmsOptions},
+};
 use tuple_conv::RepeatedTuple;
 
 use super::{
@@ -54,116 +57,167 @@ impl Yunet {
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
-    ) -> (Vec<BoundingBox>, Vec<[(f32, f32); 5]>) {
-        let (mut dets, mut lms) = self.decode(outputs, sizes, confidence_threshold, nms_threshold);
-
-        dets = dets
-            .into_iter()
-            .map(|mut bbbox| {
-                bbbox.xmin /= sizes.width_scale;
-                bbbox.xmax /= sizes.width_scale;
-                bbbox.ymin /= sizes.height_scale;
-                bbbox.ymax /= sizes.height_scale;
-                bbbox
-            })
-            .collect();
-
-        // Scale landmarks
-        lms = lms
-            .into_iter()
-            .map(|mut landmark| {
-                for i in 0..5 {
-                    landmark[i] = (
-                        landmark[i].0 / sizes.width_scale,
-                        landmark[i].1 / sizes.height_scale,
-                    )
-                }
-                landmark
-            })
-            .collect();
-
-        (dets, lms)
-    }
-
-    fn decode(
-        &self,
-        outputs: Vec<Tensor<3>>,
-        sizes: ResizedDimensions,
-        confidence_threshold: f32,
-        nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
+        let device = outputs[0].device();
         let strides = [8, 16, 32];
 
-        let mut boxes = Vec::new();
-        let mut lms = Vec::new();
+        let mut bboxes_list = Vec::with_capacity(3);
+        let mut scores_list = Vec::with_capacity(3);
+        let mut lms_list = Vec::with_capacity(3);
 
         for (i, stride) in strides.iter().enumerate() {
-            let cls = &outputs[i];
-            let obj = &outputs[i + strides.len() * 1];
-            let bbox = &outputs[i + strides.len() * 2];
-            let kkps = &outputs[i + strides.len() * 3];
-
-            let rows: usize = (sizes.height as usize / stride) as usize;
+            // Explicitly limit total elements to original loop sizes to avoid processing padding!
+            let rows = (sizes.height as usize / stride) as usize;
             let cols = (sizes.width as usize / stride) as usize;
+            let valid_n = rows * cols;
 
-            for row in 0..rows {
-                for col in 0..cols {
-                    let idx = row * cols + col;
+            // Slice out any extra padded anchors the model might have emitted
+            let cls = outputs[i].clone().slice([0..1, 0..valid_n, 0..1]);
+            let obj = outputs[i + strides.len() * 1]
+                .clone()
+                .slice([0..1, 0..valid_n, 0..1]);
+            let bbox = outputs[i + strides.len() * 2]
+                .clone()
+                .slice([0..1, 0..valid_n, 0..4]);
+            let kkps = outputs[i + strides.len() * 3]
+                .clone()
+                .slice([0..1, 0..valid_n, 0..10]);
 
-                    let cls_score: f32 = cls.clone().slice([0, idx, 0]).into_scalar();
-                    let obj_score: f32 = obj.clone().slice([0, idx, 0]).into_scalar();
+            let cols_i64 = cols as i64;
 
-                    let cls_score = cls_score.min(1.0).max(0.0);
-                    let obj_score = obj_score.min(1.0).max(0.0);
+            let idx = Tensor::<1, Int>::arange(0..valid_n as i64, &device);
 
-                    let score = f32::sqrt(cls_score * obj_score);
-                    // Check if the score meets the threshold
-                    if score < confidence_threshold {
-                        continue;
-                    }
+            let row_idx = idx.clone() / cols_i64;
+            let col_idx = idx - (row_idx.clone() * cols_i64);
 
-                    let cx = (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar::<f32>())
-                        * (*stride as f32);
-                    let cy = (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar::<f32>())
-                        * (*stride as f32);
-                    let w =
-                        f32::exp(bbox.clone().slice([0, idx, 2]).into_scalar()) * (*stride as f32);
-                    let h =
-                        f32::exp(bbox.clone().slice([0, idx, 3]).into_scalar()) * (*stride as f32);
+            let col_float = col_idx.float().reshape([1, valid_n, 1]);
+            let row_float = row_idx.float().reshape([1, valid_n, 1]);
 
-                    let x1 = cx - w / 2.0;
-                    let y1 = cy - h / 2.0;
+            let grid_tensor = Tensor::cat(vec![col_float, row_float], 2);
 
-                    let x2 = cx + w / 2.0;
-                    let y2 = cy + h / 2.0;
-                    boxes.push(BoundingBox {
-                        xmin: x1,
-                        ymin: y1,
-                        xmax: x2,
-                        ymax: y2,
-                        confidence: score,
-                    });
+            let cls_clamped = cls.clamp(0.0, 1.0);
+            let obj_clamped = obj.clamp(0.0, 1.0);
+            let scores = (cls_clamped * obj_clamped).sqrt();
 
-                    let mut lm: Landmarks = [(0.0, 0.0); 5];
-                    // Get landmarks
-                    for n in 0..5 {
-                        let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar::<f32>()
-                            + col as f32)
-                            * (*stride as f32);
-                        let landmark_y =
-                            (kkps.clone().slice([0, idx, n * 2 + 1]).into_scalar::<f32>()
-                                + row as f32)
-                                * (*stride as f32);
+            let bbox_xy = bbox.clone().slice([0..1, 0..valid_n, 0..2]);
+            let bbox_wh = bbox.clone().slice([0..1, 0..valid_n, 2..4]);
 
-                        lm[n] = (landmark_x, landmark_y);
-                    }
-                    lms.push(lm);
-                }
-            }
+            let stride_f32 = *stride as f32;
+            let cxcy = (grid_tensor.clone() + bbox_xy) * stride_f32;
+            let wh = bbox_wh.exp() * stride_f32;
+
+            let half_wh = wh / 2.0;
+            let x1y1 = cxcy.clone() - half_wh.clone();
+            let x2y2 = cxcy + half_wh;
+
+            let bboxes = Tensor::cat(vec![x1y1, x2y2], 2);
+
+            let grid_10 = Tensor::cat(
+                vec![
+                    grid_tensor.clone(),
+                    grid_tensor.clone(),
+                    grid_tensor.clone(),
+                    grid_tensor.clone(),
+                    grid_tensor.clone(),
+                ],
+                2,
+            );
+            let lms = (kkps + grid_10) * stride_f32;
+
+            bboxes_list.push(bboxes);
+            scores_list.push(scores);
+            lms_list.push(lms);
         }
 
-        non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
-        (boxes, lms)
+        let all_bboxes = Tensor::cat(bboxes_list, 1);
+        let all_scores = Tensor::cat(scores_list, 1);
+        let all_lms = Tensor::cat(lms_list, 1);
+
+        let total_n = all_bboxes.dims()[1];
+        let bboxes_2d = all_bboxes.reshape([total_n, 4]);
+        let scores_1d = all_scores.reshape([total_n]);
+        let lms_2d = all_lms.reshape([total_n, 10]);
+
+        let nms_options = NmsOptions {
+            iou_threshold: nms_threshold,
+            score_threshold: confidence_threshold,
+            max_output_boxes: 500,
+        };
+
+        let kept_indices = bboxes_2d.clone().nms(scores_1d.clone(), nms_options);
+
+        let scale_bbox = Tensor::<2>::from_data(
+            TensorData::new(
+                vec![
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                ],
+                [1, 4],
+            ),
+            &device,
+        );
+        let scale_lms = Tensor::<2>::from_data(
+            TensorData::new(
+                vec![
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                ],
+                [1, 10],
+            ),
+            &device,
+        );
+
+        let kept_bboxes = bboxes_2d.select(0, kept_indices.clone()) / scale_bbox;
+        let kept_lms = lms_2d.select(0, kept_indices.clone()) / scale_lms;
+        let kept_scores = scores_1d.select(0, kept_indices);
+
+        let final_bboxes_data = kept_bboxes
+            .into_data()
+            .to_vec::<f32>()
+            .expect("Failed to read bboxes");
+        let final_scores_data = kept_scores
+            .into_data()
+            .to_vec::<f32>()
+            .expect("Failed to read scores");
+        let final_lms_data = kept_lms
+            .into_data()
+            .to_vec::<f32>()
+            .expect("Failed to read landmarks");
+
+        let num_kept = final_scores_data.len();
+        let mut final_boxes = Vec::with_capacity(num_kept);
+        let mut final_landmarks = Vec::with_capacity(num_kept);
+
+        for i in 0..num_kept {
+            final_boxes.push(BoundingBox {
+                xmin: final_bboxes_data[i * 4 + 0],
+                ymin: final_bboxes_data[i * 4 + 1],
+                xmax: final_bboxes_data[i * 4 + 2],
+                ymax: final_bboxes_data[i * 4 + 3],
+                confidence: final_scores_data[i],
+            });
+
+            let mut lm: Landmarks = [(0.0, 0.0); 5];
+            for n in 0..5 {
+                lm[n] = (
+                    final_lms_data[i * 10 + n * 2],
+                    final_lms_data[i * 10 + n * 2 + 1],
+                );
+            }
+            final_landmarks.push(lm);
+        }
+
+        (final_boxes, final_landmarks)
     }
 }
 
@@ -204,7 +258,7 @@ impl Detector for Yunet {
             let right_mouth = (landmark[3].0 as u32, landmark[3].1 as u32);
             let left_mouth = (landmark[4].0 as u32, landmark[4].1 as u32);
 
-            let confidence = detection.confidence.min(0.0).max(1.0);
+            let confidence = detection.confidence.clamp(0.0, 1.0);
             let facial_area = FacialAreaRegion {
                 x: x as u32,
                 y: y as u32,
