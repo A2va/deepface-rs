@@ -5,8 +5,8 @@ use burn::{
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    non_maximum_suppression, resize_tensor, BoundingBox, Detector, DetectorMetadata,
-    FacialAreaRegion, Landmarks, ResizedDimensions,
+    resize_tensor, BoundingBox, Detector, DetectorMetadata, FacialAreaRegion, Landmarks,
+    ResizedDimensions,
 };
 use crate::ImageToTensor;
 
