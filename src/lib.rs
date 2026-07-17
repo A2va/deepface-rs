@@ -19,7 +19,7 @@ pub mod recognition;
 
 pub mod metrics;
 
-use burn::prelude::{Backend, Device};
+use burn::prelude::Device;
 use burn::tensor::{Element, Tensor, TensorData};
 use image::{DynamicImage, RgbImage, SubImage};
 
@@ -29,22 +29,22 @@ use image::{DynamicImage, RgbImage, SubImage};
 /// allowing consistent conversion across image inputs and tensor data.
 ///
 /// The resulting tensor is `[C, H, W]`.
-pub trait ImageToTensor<B: Backend> {
+pub trait ImageToTensor {
     /// The ouput tensor format is [C, H, W], where C is the number of channel,
     /// H the height and W the width
-    fn to_tensor(&self) -> Tensor<B, 3>;
+    fn to_tensor(&self) -> Tensor<3>;
 }
 
 /// Converts a `DynamicImage` to a tensor of shape `[C, H, W]`, in RGB format.
-impl<B: Backend> ImageToTensor<B> for DynamicImage {
-    fn to_tensor(&self) -> Tensor<B, 3> {
+impl ImageToTensor for DynamicImage {
+    fn to_tensor(&self) -> Tensor<3> {
         let rgb_image = self.to_rgb8();
         rgb_image.to_tensor()
     }
 }
 
-impl<B: Backend> ImageToTensor<B> for RgbImage {
-    fn to_tensor(&self) -> Tensor<B, 3> {
+impl ImageToTensor for RgbImage {
+    fn to_tensor(&self) -> Tensor<3> {
         // Convert image data to tensor
         let data = self.clone().into_raw();
         let device = &Default::default();
@@ -58,24 +58,24 @@ impl<B: Backend> ImageToTensor<B> for RgbImage {
     }
 }
 
-impl<B: Backend> ImageToTensor<B> for SubImage<&mut DynamicImage> {
-    fn to_tensor(&self) -> Tensor<B, 3> {
+impl ImageToTensor for SubImage<&mut DynamicImage> {
+    fn to_tensor(&self) -> Tensor<3> {
         let img = DynamicImage::ImageRgba8(self.to_image());
         img.to_tensor()
     }
 }
 
-impl<B: Backend> ImageToTensor<B> for SubImage<&DynamicImage> {
-    fn to_tensor(&self) -> Tensor<B, 3> {
+impl ImageToTensor for SubImage<&DynamicImage> {
+    fn to_tensor(&self) -> Tensor<3> {
         let img = DynamicImage::ImageRgba8(self.to_image());
         img.to_tensor()
     }
 }
 
 /// Clones the tensor to the specified device. Assumes input is already `[C, H, W]`.
-impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
+impl ImageToTensor for Tensor<3> {
     // The tensor must be in 3 dimensions [C, H, W]
-    fn to_tensor(&self) -> Tensor<B, 3> {
+    fn to_tensor(&self) -> Tensor<3> {
         self.clone()
     }
 }
@@ -91,17 +91,10 @@ impl<B: Backend> ImageToTensor<B> for Tensor<B, 3> {
 /// # Returns
 ///
 /// A 3D tensor with data converted to the backend's float element type and permuted from [H, W, C] to [C, H, W]
-pub fn to_tensor<B: Backend, T: Element>(
-    data: Vec<T>,
-    shape: [usize; 3],
-    device: &Device<B>,
-) -> Tensor<B, 3> {
-    Tensor::<B, 3>::from_data(
-        TensorData::new(data, shape).convert::<B::FloatElem>(),
-        device,
-    )
-    // [H, W, C] -> [C, H, W]
-    .permute([2, 0, 1])
+pub fn to_tensor<T: Element>(data: Vec<T>, shape: [usize; 3], device: &Device) -> Tensor<3> {
+    Tensor::<3>::from_data(TensorData::new(data, shape).convert::<f32>(), device)
+        // [H, W, C] -> [C, H, W]
+        .permute([2, 0, 1])
 }
 
 // This was enum was moved here because both the detection and recognition model of dlib needs it.

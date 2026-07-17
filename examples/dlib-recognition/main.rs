@@ -5,8 +5,8 @@ use deepface::metrics::{verify, DistanceMethod};
 use deepface::recognition::{DlibRecognition, RecognitionModel, Recognizer};
 use deepface::DlibDetectorModel;
 
-fn embed(img: DynamicImage) -> Tensor<NdArray, 1> {
-    let model: DlibRecognition<NdArray> = DlibRecognition::new(DlibDetectorModel::Hog);
+fn embed(img: DynamicImage) -> Tensor<1> {
+    let model: DlibRecognition = DlibRecognition::new(DlibDetectorModel::Hog);
     model.embed(&img, None)
 }
 

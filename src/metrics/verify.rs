@@ -1,4 +1,4 @@
-use burn::prelude::{Backend, Tensor};
+use burn::prelude::Tensor;
 
 use crate::metrics::distance::{distance, DistanceMethod};
 use crate::recognition::RecognitionModel;
@@ -68,9 +68,9 @@ pub struct VerifyResult {
 
 /// Verify that two face embeddings are the same or not.
 /// If the threshold is None it will compare to the internal threshold value.
-pub fn verify<B: Backend, const D: usize>(
-    x1: Tensor<B, D>,
-    x2: Tensor<B, D>,
+pub fn verify<const D: usize>(
+    x1: Tensor<D>,
+    x2: Tensor<D>,
     model: RecognitionModel,
     method: DistanceMethod,
     threshold: Option<f32>,

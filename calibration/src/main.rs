@@ -1,7 +1,6 @@
 use anyhow::Context;
 
-use burn::prelude::Backend;
-use burn::{backend::NdArray, Tensor};
+use burn::Tensor;
 use deepface::DlibDetectorModel;
 use deepface::ImageToTensor;
 use image::{DynamicImage, GenericImageView};
@@ -17,18 +16,14 @@ use std::fs::File;
 use std::path::Path;
 use std::{env, process};
 
-enum AnyModel<B: Backend> {
-    DeepID(DeepID<B>),
-    FaceNet512(FaceNet512<B>),
-    DlibRecognition(DlibRecognition<B>),
+enum AnyModel {
+    DeepID(DeepID),
+    FaceNet512(FaceNet512),
+    DlibRecognition(DlibRecognition),
 }
 
-impl<B: Backend<FloatElem = f32>> Recognizer<B> for AnyModel<B> {
-    fn embed<I: ImageToTensor<B>>(
-        &self,
-        input: &I,
-        norm: Option<NormalizationMethod>,
-    ) -> Tensor<B, 1> {
+impl Recognizer for AnyModel {
+    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
         match self {
             AnyModel::DeepID(m) => m.embed(input, norm),
             AnyModel::FaceNet512(m) => m.embed(input, norm),
@@ -37,7 +32,7 @@ impl<B: Backend<FloatElem = f32>> Recognizer<B> for AnyModel<B> {
     }
 }
 
-fn get_model<B: Backend<FloatElem = f32>>(name: &str) -> AnyModel<B> {
+fn get_model(name: &str) -> AnyModel {
     match name {
         "deepid" => AnyModel::DeepID(DeepID::new()),
         "facenet512" => AnyModel::FaceNet512(FaceNet512::new()),
@@ -48,11 +43,7 @@ fn get_model<B: Backend<FloatElem = f32>>(name: &str) -> AnyModel<B> {
     }
 }
 
-fn embed(
-    img: DynamicImage,
-    detector: &impl Detector<NdArray>,
-    model: &AnyModel<NdArray>,
-) -> Tensor<NdArray, 1> {
+fn embed(img: DynamicImage, detector: &impl Detector, model: &AnyModel) -> Tensor<1> {
     let results = detector.detect(&img, 0.8, None);
     let results = results.first().unwrap();
 
@@ -77,7 +68,7 @@ fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
     let mut wtr = csv::Writer::from_writer(file);
     wtr.write_record(&headers)?;
 
-    let detector: Yunet<NdArray> = Yunet::new();
+    let detector: Yunet = Yunet::new();
     let model = get_model(&model_name);
 
     for (i, result) in rdr.records().enumerate() {

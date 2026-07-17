@@ -1,4 +1,4 @@
-use burn::{prelude::Backend, tensor::Tensor};
+use burn::tensor::Tensor;
 use tuple_conv::RepeatedTuple;
 
 use super::{
@@ -35,11 +35,11 @@ mod yunet {
 ///  publisher={Springer}
 /// }
 /// ```
-pub struct Yunet<B: Backend> {
-    model: yunet::Model<B>,
+pub struct Yunet {
+    model: yunet::Model,
 }
 
-impl<B: Backend<FloatElem = f32>> Yunet<B> {
+impl Yunet {
     /// Create a new Yunet face detector.
     pub fn new() -> Self {
         let model = yunet::Model::default();
@@ -50,7 +50,7 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
     // https://github.com/opencv/opencv/blob/829495355d7da3f073828dd584f1cdba9e07dc65/modules/objdetect/src/face_detect.cpp
     fn postprocess(
         &self,
-        outputs: Vec<Tensor<B, 3>>,
+        outputs: Vec<Tensor<3>>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -87,7 +87,7 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
 
     fn decode(
         &self,
-        outputs: Vec<Tensor<B, 3>>,
+        outputs: Vec<Tensor<3>>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -110,8 +110,8 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
                 for col in 0..cols {
                     let idx = row * cols + col;
 
-                    let cls_score = cls.clone().slice([0, idx, 0]).into_scalar();
-                    let obj_score = obj.clone().slice([0, idx, 0]).into_scalar();
+                    let cls_score: f32 = cls.clone().slice([0, idx, 0]).into_scalar();
+                    let obj_score: f32 = obj.clone().slice([0, idx, 0]).into_scalar();
 
                     let cls_score = cls_score.min(1.0).max(0.0);
                     let obj_score = obj_score.min(1.0).max(0.0);
@@ -122,9 +122,9 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
                         continue;
                     }
 
-                    let cx = (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar())
+                    let cx = (col as f32 + bbox.clone().slice([0, idx, 0]).into_scalar::<f32>())
                         * (*stride as f32);
-                    let cy = (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar())
+                    let cy = (row as f32 + bbox.clone().slice([0, idx, 1]).into_scalar::<f32>())
                         * (*stride as f32);
                     let w =
                         f32::exp(bbox.clone().slice([0, idx, 2]).into_scalar()) * (*stride as f32);
@@ -147,12 +147,13 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
                     let mut lm: Landmarks = [(0.0, 0.0); 5];
                     // Get landmarks
                     for n in 0..5 {
-                        let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar()
+                        let landmark_x = (kkps.clone().slice([0, idx, n * 2]).into_scalar::<f32>()
                             + col as f32)
                             * (*stride as f32);
-                        let landmark_y = (kkps.clone().slice([0, idx, n * 2 + 1]).into_scalar()
-                            + row as f32)
-                            * (*stride as f32);
+                        let landmark_y =
+                            (kkps.clone().slice([0, idx, n * 2 + 1]).into_scalar::<f32>()
+                                + row as f32)
+                                * (*stride as f32);
 
                         lm[n] = (landmark_x, landmark_y);
                     }
@@ -166,14 +167,14 @@ impl<B: Backend<FloatElem = f32>> Yunet<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> DetectorMetadata for Yunet<B> {
+impl DetectorMetadata for Yunet {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = Some(640);
 }
 
-impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
+impl Detector for Yunet {
     /// See [`super::Detector`]
-    fn detect<I: ImageToTensor<B>>(
+    fn detect<I: ImageToTensor>(
         &self,
         input: &I,
         confidence_threshold: f32,
@@ -226,12 +227,11 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for Yunet<B> {
 #[cfg(test)]
 mod tests {
     use crate::detection::{Detector, Yunet};
-    use burn::backend::NdArray;
 
     #[test]
     fn one_face() {
         let dataset_dir = std::env::current_dir().unwrap().join("dataset");
-        let model: Yunet<NdArray> = Yunet::new();
+        let model: Yunet = Yunet::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
         let results = model.detect(&img, 0.8, None);

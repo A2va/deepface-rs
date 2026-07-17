@@ -5,14 +5,14 @@ use deepface::detection::{Detector, Yunet};
 use deepface::metrics::{verify, DistanceMethod};
 use deepface::recognition::{FaceNet512, RecognitionModel, Recognizer};
 
-fn embed(mut img: DynamicImage) -> Tensor<NdArray, 1> {
-    let model: Yunet<NdArray> = Yunet::new();
+fn embed(mut img: DynamicImage) -> Tensor<1> {
+    let model: Yunet = Yunet::new();
     let results = model.detect(&img, 0.8, None);
     let results = results.first().unwrap();
 
     let subimg = img.sub_image(results.x, results.y, results.w, results.h);
 
-    let model: FaceNet512<NdArray> = FaceNet512::new();
+    let model: FaceNet512 = FaceNet512::new();
     model.embed(&subimg, None)
 }
 

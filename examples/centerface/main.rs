@@ -1,4 +1,3 @@
-use burn::backend::NdArray;
 use deepface::detection::{CenterFace, Detector};
 use image::ImageBuffer;
 
@@ -26,7 +25,7 @@ fn draw_rect(
 }
 
 fn main() {
-    let model: CenterFace<NdArray> = CenterFace::new();
+    let model: CenterFace = CenterFace::new();
 
     let img = image::open("dataset/img1.jpg").unwrap();
 

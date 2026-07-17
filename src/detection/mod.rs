@@ -24,14 +24,14 @@ trait DetectorMetadata {
 }
 
 /// A trait that all face dectector models implements
-pub trait Detector<B: Backend> {
+pub trait Detector {
     /// Detect faces in an input image, returning bounding boxes and landmarks.
     /// - `input`: The input image implementing `ImageToTensor`, tensor are also accepted
     /// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
     /// It is not possible to choose the device for an image, it will use the default one for that backend.
     /// - `confidence_threshold`: Minimum confidence to consider a detection valid
     /// - `nms_threshold`: Optional IoU threshold for non-maximum suppression
-    fn detect<I: ImageToTensor<B>>(
+    fn detect<I: ImageToTensor>(
         &self,
         input: &I,
         confidence_threshold: f32,
@@ -106,15 +106,15 @@ fn resize_to_divisor_multiple(
     }
 }
 
-use burn::prelude::{Backend, Tensor};
+use burn::prelude::Tensor;
 
 /// Resize a tensor to match model input requirements.
 /// The tensor shape is expected to be [C, H, W] and will be resized to [1, C, new_H, new_W].
-fn resize_tensor<B: Backend>(
-    tensor: Tensor<B, 3>,
+fn resize_tensor(
+    tensor: Tensor<3>,
     divisor: u32,
     max_size: Option<u32>,
-) -> (Tensor<B, 4>, ResizedDimensions) {
+) -> (Tensor<4>, ResizedDimensions) {
     use burn::nn::interpolate::Interpolate2dConfig;
     let (width, height) = (tensor.dims()[2] as u32, tensor.dims()[1] as u32);
     let sizes = resize_to_divisor_multiple(width, height, divisor, max_size);

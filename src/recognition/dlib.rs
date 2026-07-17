@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
-
-use burn::{prelude::Backend, Tensor};
+use burn::Tensor;
 use dlib_sys::{
     FaceDetector, FaceDetectorCnn, FaceDetectorTrait, FaceEncoderNetwork, FaceEncoderTrait,
     ImageMatrix, LandmarkPredictor, LandmarkPredictorTrait,
@@ -14,18 +12,17 @@ use crate::{DlibDetectorModel, ImageToTensor};
 /// # Licensing
 /// - Model weights: [Creative Commons CC0](https://github.com/davisking/dlib-models)
 /// - Dlib library: [Boost Software License](https://github.com/davisking/dlib/blob/master/LICENSE.txt)
-pub struct DlibRecognition<B: Backend> {
-    phantom: PhantomData<B>,
+pub struct DlibRecognition {
     detection: Box<dyn FaceDetectorTrait>,
     landmarks: LandmarkPredictor,
     recognition: FaceEncoderNetwork,
 }
 
-impl<B: Backend<FloatElem = f32>> RecognizerMetadata for DlibRecognition<B> {
+impl RecognizerMetadata for DlibRecognition {
     const SHAPE: (u32, u32) = (0, 0);
 }
 
-impl<B: Backend> DlibRecognition<B> {
+impl DlibRecognition {
     /// Create a new Dlib face recognition with a given model type.
     ///
     /// Since this model requires the landmarks provided by the dlib detection model,
@@ -55,7 +52,6 @@ impl<B: Backend> DlibRecognition<B> {
         };
 
         Self {
-            phantom: PhantomData,
             recognition: recognition,
             detection: detection,
             landmarks: landmarks,
@@ -63,7 +59,7 @@ impl<B: Backend> DlibRecognition<B> {
     }
 }
 
-impl<B: Backend> Recognizer<B> for DlibRecognition<B> {
+impl Recognizer for DlibRecognition {
     /// See [`super::Recognizer`].
     ///
     /// In this model the norm parameter is not used.
@@ -71,11 +67,7 @@ impl<B: Backend> Recognizer<B> for DlibRecognition<B> {
     /// If the input image has already been cropped to include the face,
     /// this can trigger a panic because the integrated detection model hasn't found a face.
     /// In this case, try providing the full image directly.
-    fn embed<I: ImageToTensor<B>>(
-        &self,
-        input: &I,
-        _norm: Option<NormalizationMethod>,
-    ) -> Tensor<B, 1> {
+    fn embed<I: ImageToTensor>(&self, input: &I, _norm: Option<NormalizationMethod>) -> Tensor<1> {
         let tensor = input.to_tensor().int();
 
         // Dlib expects u8 tensor
@@ -100,6 +92,6 @@ impl<B: Backend> Recognizer<B> for DlibRecognition<B> {
         let embeddings = encodings.first().unwrap();
 
         let device = &Default::default();
-        Tensor::<B, 1>::from_floats(embeddings.as_ref(), &device)
+        Tensor::<1>::from_floats(embeddings.as_ref(), &device)
     }
 }

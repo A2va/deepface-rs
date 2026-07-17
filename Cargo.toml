@@ -10,12 +10,14 @@ members = [
 ]
 
 [workspace.dependencies]
-burn = {version = "0.21", features = ["vision"]}
+# burn = {version = "0.21", features = ["vision"]}
+burn = {git = "https://github.com/tracel-ai/burn", features = ["vision"] }
 
 [dependencies]
 image = "0.25"
 burn = { workspace = true }
-burn-store = "0.21"
+# burn-store = "0.21"
+burn-store = { package = "burn-store", git = "https://github.com/tracel-ai/burn"}
 dlib_sys = { package = "dlib", git = "https://github.com/a2va/dlib-rs", rev = "4e8c8c8", optional = true, features = ["embed-all"]}
 
 thiserror = "1"
@@ -23,7 +25,8 @@ tuple-conv = "1.0.1"
 
 [build-dependencies]
 reqwest = { version = "0.12", features = ["blocking", "rustls-tls"]}
-burn-onnx = "0.21"
+# burn-onnx = "0.21"
+burn-onnx  = { git = "https://github.com/tracel-ai/burn-onnx" }
 
 [dev-dependencies]
 burn = { workspace = true, features = ["ndarray", "vision", "flex"]}

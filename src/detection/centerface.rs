@@ -1,4 +1,4 @@
-use burn::{prelude::Backend, tensor::Tensor};
+use burn::tensor::Tensor;
 
 use super::{
     non_maximum_suppression, resize_tensor, BoundingBox, Detector, DetectorMetadata,
@@ -26,11 +26,11 @@ mod centerface {
 ///   year    = {2019}
 /// }
 /// ```
-pub struct CenterFace<B: Backend> {
-    model: centerface::Model<B>,
+pub struct CenterFace {
+    model: centerface::Model,
 }
 
-impl<B: Backend<FloatElem = f32>> CenterFace<B> {
+impl CenterFace {
     // Create a new Centerface face detector
     pub fn new() -> Self {
         let model = centerface::Model::default();
@@ -39,10 +39,10 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
 
     fn postprocess(
         &self,
-        heatmap: Tensor<B, 4>,
-        landmark: Tensor<B, 4>,
-        offset: Tensor<B, 4>,
-        scale: Tensor<B, 4>,
+        heatmap: Tensor<4>,
+        landmark: Tensor<4>,
+        offset: Tensor<4>,
+        scale: Tensor<4>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -87,10 +87,10 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
 
     fn decode(
         &self,
-        heatmap: Tensor<B, 4>,
-        scale: Tensor<B, 4>,
-        offset: Tensor<B, 4>,
-        landmark: Tensor<B, 4>,
+        heatmap: Tensor<4>,
+        scale: Tensor<4>,
+        offset: Tensor<4>,
+        landmark: Tensor<4>,
         sizes: ResizedDimensions,
         confidence_threshold: f32,
         nms_threshold: f32,
@@ -102,11 +102,11 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
         let scale_dim2 = scale.dims()[2];
         let scale_dim3 = scale.dims()[3];
 
-        let scale0: Tensor<B, 2> = scale
+        let scale0: Tensor<2> = scale
             .clone()
             .slice([0..1, 0..1])
             .reshape([scale_dim2, scale_dim3]);
-        let scale1: Tensor<B, 2> = scale
+        let scale1: Tensor<2> = scale
             .clone()
             .slice([0..1, 1..2])
             .reshape([scale_dim2, scale_dim3]);
@@ -145,13 +145,13 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
                 let ci0 = c0[i] as usize;
                 let ci1 = c1[i] as usize;
 
-                let s0 = scale0
+                let s0: f32 = scale0
                     .clone()
                     .slice([ci0, ci1])
                     .exp()
                     .mul_scalar(4.0)
                     .into_scalar();
-                let s1 = scale1
+                let s1: f32 = scale1
                     .clone()
                     .slice([ci0, ci1])
                     .exp()
@@ -163,8 +163,14 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
 
                 let score = heatmap.clone().slice([ci0, ci1]);
 
-                let mut x1 = f32::max(0.0, (ci1 as f32 + o1.into_scalar() + 0.5) * 4.0 - s1 / 2.0);
-                let mut y1 = f32::max(0.0, (ci0 as f32 + o0.into_scalar() + 0.5) * 4.0 - s0 / 2.0);
+                let mut x1 = f32::max(
+                    0.0,
+                    (ci1 as f32 + o1.into_scalar::<f32>() + 0.5) * 4.0 - s1 / 2.0,
+                );
+                let mut y1 = f32::max(
+                    0.0,
+                    (ci0 as f32 + o0.into_scalar::<f32>() + 0.5) * 4.0 - s0 / 2.0,
+                );
 
                 x1 = f32::min(x1, sizes.width as f32);
                 y1 = f32::min(y1, sizes.height as f32);
@@ -182,11 +188,14 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
 
                 let mut lm: Landmarks = [(0.0, 0.0); 5];
                 for j in 0..5 {
-                    let lm0 = landmark.clone().slice([0, j * 2, ci0, ci1]).into_scalar();
+                    let lm0 = landmark
+                        .clone()
+                        .slice([0, j * 2, ci0, ci1])
+                        .into_scalar::<f32>();
                     let lm1 = landmark
                         .clone()
                         .slice([0, j * 2 + 1, ci0, ci1])
-                        .into_scalar();
+                        .into_scalar::<f32>();
 
                     lm[j] = (lm1 * s1 + x1, lm0 * s0 + y1);
                 }
@@ -198,14 +207,14 @@ impl<B: Backend<FloatElem = f32>> CenterFace<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> DetectorMetadata for CenterFace<B> {
+impl DetectorMetadata for CenterFace {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
 }
 
-impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
+impl Detector for CenterFace {
     /// See [`super::Detector`]
-    fn detect<I: ImageToTensor<B>>(
+    fn detect<I: ImageToTensor>(
         &self,
         input: &I,
         confidence_threshold: f32,
@@ -264,13 +273,12 @@ impl<B: Backend<FloatElem = f32>> Detector<B> for CenterFace<B> {
 #[cfg(test)]
 mod tests {
     use crate::detection::{CenterFace, Detector};
-    use burn::backend::NdArray;
 
     #[test]
     fn one_face() {
         let dataset_dir = std::env::current_dir().unwrap().join("dataset");
 
-        let model: CenterFace<NdArray> = CenterFace::new();
+        let model: CenterFace = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
         let results = model.detect(&img, 0.8, None);

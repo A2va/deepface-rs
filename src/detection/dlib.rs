@@ -1,6 +1,3 @@
-use std::marker::PhantomData;
-
-use burn::prelude::Backend;
 use dlib_sys::{
     FaceDetector, FaceDetectorCnn, FaceDetectorTrait, ImageMatrix, LandmarkPredictor,
     LandmarkPredictorTrait,
@@ -14,13 +11,13 @@ use crate::{DlibDetectorModel, ImageToTensor};
 /// # Licensing
 /// - Model weights: [Creative Commons CC0](https://github.com/davisking/dlib-models)
 /// - Dlib library: [Boost Software License](https://github.com/davisking/dlib/blob/master/LICENSE.txt)
-pub struct DlibDetection<B: Backend> {
-    phantom: PhantomData<B>,
+pub struct DlibDetection {
+    // phantom: PhantomData<B>,
     detection: Box<dyn FaceDetectorTrait>,
     landmarks: LandmarkPredictor,
 }
 
-impl<B: Backend> DlibDetection<B> {
+impl DlibDetection {
     /// Create a new Dlib face detector with a given model type.
     ///
     /// Burn backend are not supported on this model.
@@ -43,24 +40,23 @@ impl<B: Backend> DlibDetection<B> {
         };
 
         Self {
-            phantom: PhantomData,
             detection: detection,
             landmarks: landmarks,
         }
     }
 }
 
-impl<B: Backend<FloatElem = f32>> DetectorMetadata for DlibDetection<B> {
+impl DetectorMetadata for DlibDetection {
     const DIVISOR: u32 = 32;
     const MAX_SIZE: Option<u32> = None;
 }
 
-impl<B: Backend> Detector<B> for DlibDetection<B> {
+impl Detector for DlibDetection {
     /// See [`super::Detector`].
     ///
     /// Unlike most models, which return a confidence score between 0 and 1,
     /// Dlib can return a value lower than 0, up to a maximum of 3.5, based on this [issue](https://github.com/davisking/dlib/issues/761).
-    fn detect<I: ImageToTensor<B>>(
+    fn detect<I: ImageToTensor>(
         &self,
         input: &I,
         _confidence_threshold: f32,

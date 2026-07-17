@@ -21,7 +21,7 @@ fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[
 }
 
 fn main() {
-    let model: DlibDetection<NdArray> = DlibDetection::new(DlibDetectorModel::Hog);
+    let model: DlibDetection = DlibDetection::new(DlibDetectorModel::Hog);
 
     let img = image::open("dataset/one_face.jpg").unwrap();
 

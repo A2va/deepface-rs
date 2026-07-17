@@ -1,4 +1,3 @@
-use burn::backend::NdArray;
 use deepface::detection::{Detector, Yunet};
 
 use image::RgbImage;
@@ -20,7 +19,7 @@ fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[
 }
 
 fn main() {
-    let model: Yunet<NdArray> = Yunet::new();
+    let model: Yunet = Yunet::new();
 
     let img = image::open("dataset/img1.jpg").unwrap();
 

@@ -1,6 +1,6 @@
 use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
 use crate::ImageToTensor;
-use burn::{prelude::Backend, tensor::Tensor};
+use burn::tensor::Tensor;
 
 mod deepid {
     include!(concat!(env!("OUT_DIR"), "/models/recognition/deepid.rs"));
@@ -9,11 +9,11 @@ mod deepid {
 /// DeepID face recognition
 ///
 /// [Paper](https://openaccess.thecvf.com/content_cvpr_2014/papers/Sun_Deep_Learning_Face_2014_CVPR_paper.pdf)
-pub struct DeepID<B: Backend> {
-    model: deepid::Model<B>,
+pub struct DeepID {
+    model: deepid::Model,
 }
 
-impl<B: Backend<FloatElem = f32>> DeepID<B> {
+impl DeepID {
     /// Create a new DeepID face recognizer
     pub fn new() -> Self {
         let model = deepid::Model::default();
@@ -21,19 +21,15 @@ impl<B: Backend<FloatElem = f32>> DeepID<B> {
     }
 }
 
-impl<B: Backend<FloatElem = f32>> RecognizerMetadata for DeepID<B> {
+impl RecognizerMetadata for DeepID {
     const SHAPE: (u32, u32) = (47, 55);
 }
 
-impl<B: Backend<FloatElem = f32>> Recognizer<B> for DeepID<B> {
+impl Recognizer for DeepID {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::ZeroOne`]
-    fn embed<I: ImageToTensor<B>>(
-        &self,
-        input: &I,
-        norm: Option<NormalizationMethod>,
-    ) -> Tensor<B, 1> {
+    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
         let tensor = input.to_tensor();
         let norm = norm.unwrap_or(NormalizationMethod::ZeroOne);
 

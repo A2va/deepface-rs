@@ -1,6 +1,6 @@
 use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
 use crate::ImageToTensor;
-use burn::{prelude::Backend, tensor::Tensor};
+use burn::tensor::Tensor;
 
 mod facenet512 {
     include!(concat!(
@@ -13,30 +13,26 @@ mod facenet512 {
 /// Model and resources: [David Sandberg - Facenet](https://github.com/davidsandberg/facenet)
 ///
 /// Licensed under the [MIT License](https://github.com/davidsandberg/facenet/blob/master/LICENSE.md).
-pub struct FaceNet512<B: Backend> {
-    model: facenet512::Model<B>,
+pub struct FaceNet512 {
+    model: facenet512::Model,
 }
 
-impl<B: Backend<FloatElem = f32>> FaceNet512<B> {
+impl FaceNet512 {
     pub fn new() -> Self {
         let model = facenet512::Model::default();
         Self { model: model }
     }
 }
 
-impl<B: Backend<FloatElem = f32>> RecognizerMetadata for FaceNet512<B> {
+impl RecognizerMetadata for FaceNet512 {
     const SHAPE: (u32, u32) = (160, 160);
 }
 
-impl<B: Backend<FloatElem = f32>> Recognizer<B> for FaceNet512<B> {
+impl Recognizer for FaceNet512 {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::FaceNet`]
-    fn embed<I: ImageToTensor<B>>(
-        &self,
-        input: &I,
-        norm: Option<NormalizationMethod>,
-    ) -> Tensor<B, 1> {
+    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
         let tensor = input.to_tensor();
         let norm = norm.unwrap_or(NormalizationMethod::FaceNet);
 

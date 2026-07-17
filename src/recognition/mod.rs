@@ -14,11 +14,7 @@ pub mod dlib;
 pub use crate::recognition::dlib::DlibRecognition;
 
 use crate::ImageToTensor;
-use burn::{
-    nn::interpolate::Interpolate2dConfig,
-    prelude::{Backend, Tensor, ToElement},
-    tensor::s,
-};
+use burn::{nn::interpolate::Interpolate2dConfig, prelude::Tensor, tensor::s};
 
 #[derive(Clone, Copy, Debug)]
 pub enum RecognitionModel {
@@ -37,15 +33,11 @@ trait RecognizerMetadata {
 }
 
 /// A trait that all face recognition models implements
-pub trait Recognizer<B: Backend> {
+pub trait Recognizer {
     /// Generate an embedding from an input image, applying the specified normalization method if provided.
     /// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
     /// It is not possible to choose the device for an image, it will use the default one for that backend.
-    fn embed<I: ImageToTensor<B>>(
-        &self,
-        input: &I,
-        norm: Option<NormalizationMethod>,
-    ) -> Tensor<B, 1>;
+    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1>;
 }
 
 /// Normalization methods for face embeddings
@@ -66,10 +58,10 @@ pub enum NormalizationMethod {
     ArcFace,
 }
 
-fn resize<B: Backend>(
-    tensor: Tensor<B, 3>, // [C, H, W]
+fn resize(
+    tensor: Tensor<3>, // [C, H, W]
     shape: (u32, u32),
-) -> Tensor<B, 4> {
+) -> Tensor<4> {
     let (target_h, target_w) = (shape.0 as usize, shape.1 as usize);
 
     let interpolate = Interpolate2dConfig::new()
@@ -81,10 +73,10 @@ fn resize<B: Backend>(
     resized
 }
 
-fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod) -> Tensor<B, 4> {
+fn normalize_tensor(tensor: Tensor<4>, norm: NormalizationMethod) -> Tensor<4> {
     // Check that the tensor is between 0 and 255, rgb image
-    let max = tensor.clone().max().into_scalar().to_i32();
-    let min = tensor.clone().min().into_scalar().to_i32();
+    let max = tensor.clone().max().into_scalar::<i32>();
+    let min = tensor.clone().min().into_scalar::<i32>();
     assert!(max <= 255);
     assert!(min >= 0);
 
@@ -112,12 +104,12 @@ fn normalize_tensor<B: Backend>(tensor: Tensor<B, 4>, norm: NormalizationMethod)
 }
 
 // Excepct a tensor in the format [B, C, H, W]
-fn normalize_with_means<B: Backend>(tensor: Tensor<B, 4>, means: [f64; 3]) -> Tensor<B, 4> {
+fn normalize_with_means(tensor: Tensor<4>, means: [f64; 3]) -> Tensor<4> {
     // Split channels and subtract
     let mut out = tensor.clone();
     for (c, mean) in means.iter().enumerate() {
         let channel = out.clone().slice(s![.., c..c + 1, .., ..]);
-        let channel: Tensor<B, 4> = channel - *mean;
+        let channel: Tensor<4> = channel - *mean;
         out = out.slice_assign(s![.., c..c + 1, .., ..], channel);
     }
 
