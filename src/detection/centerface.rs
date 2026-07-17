@@ -1,4 +1,7 @@
-use burn::tensor::Tensor;
+use burn::{
+    tensor::{Int, Tensor, TensorData},
+    vision::{Nms, NmsOptions},
+};
 
 use super::{
     non_maximum_suppression, resize_tensor, BoundingBox, Detector, DetectorMetadata,
@@ -47,163 +50,156 @@ impl CenterFace {
         confidence_threshold: f32,
         nms_threshold: f32,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
-        let (mut dets, mut lms) = self.decode(
-            heatmap,
-            scale,
-            offset,
-            landmark,
-            sizes,
-            confidence_threshold,
-            nms_threshold,
+        let device = heatmap.device();
+
+        // Dimensions
+        let h = heatmap.dims()[2];
+        let w = heatmap.dims()[3];
+        let hw = h * w;
+
+        // Flatten spatial dimensions [1, C, H, W] -> [C, H*W]
+        // (Assuming batch size of 1)
+        let heatmap_1d = heatmap.reshape([hw]);
+        let scale_flat = scale.reshape([2, hw]);
+        let offset_flat = offset.reshape([2, hw]);
+        let landmark_flat = landmark.reshape([10, hw]);
+
+        let idx = Tensor::<1, Int>::arange(0..hw as i64, &device);
+
+        let row_idx = idx.clone() / (w as i64);
+        let col_idx = idx - (row_idx.clone() * (w as i64));
+
+        let grid_y = row_idx.float().reshape([1, hw]);
+        let grid_x = col_idx.float().reshape([1, hw]);
+
+        // scale0 corresponds to height, scale1 corresponds to width
+        let s0 = scale_flat.clone().slice([0..1, 0..hw]).exp() * 4.0;
+        let s1 = scale_flat.clone().slice([1..2, 0..hw]).exp() * 4.0;
+
+        let o0 = offset_flat.clone().slice([0..1, 0..hw]);
+        let o1 = offset_flat.clone().slice([1..2, 0..hw]);
+
+        let w_f32 = sizes.width as f32;
+        let h_f32 = sizes.height as f32;
+
+        let x1_unclamped = (grid_x.clone() + o1 + 0.5) * 4.0 - s1.clone() / 2.0;
+        let y1_unclamped = (grid_y.clone() + o0 + 0.5) * 4.0 - s0.clone() / 2.0;
+
+        let x1 = x1_unclamped.clamp(0.0, w_f32);
+        let y1 = y1_unclamped.clamp(0.0, h_f32);
+
+        let x2 = (x1.clone() + s1.clone()).clamp(0.0, w_f32);
+        let y2 = (y1.clone() + s0.clone()).clamp(0.0, h_f32);
+
+        // Cat vertically into [4, H*W], then transpose into [H*W, 4] for NMS
+        let bboxes =
+            Tensor::cat(vec![x1.clone(), y1.clone(), x2.clone(), y2.clone()], 0).transpose();
+
+        let mut lm_tensors = Vec::with_capacity(10);
+        for j in 0..5 {
+            // lm0 (even indexes) = Y ratio offset
+            // lm1 (odd indexes) = X ratio offset
+            let lm0 = landmark_flat.clone().slice([j * 2..j * 2 + 1, 0..hw]);
+            let lm1 = landmark_flat.clone().slice([j * 2 + 1..j * 2 + 2, 0..hw]);
+
+            let lm_x = lm1 * s1.clone() + x1.clone();
+            let lm_y = lm0 * s0.clone() + y1.clone();
+
+            lm_tensors.push(lm_x);
+            lm_tensors.push(lm_y);
+        }
+
+        // Cat vertically into [10, H*W], then transpose into [H*W, 10]
+        let lms = Tensor::cat(lm_tensors, 0).transpose();
+
+        let nms_options = NmsOptions {
+            iou_threshold: nms_threshold,
+            score_threshold: confidence_threshold, // NMS dynamically filters this for us securely
+            max_output_boxes: 500,
+        };
+
+        // Leverage Burn's hardware-accelerated NMS
+        let kept_indices = bboxes.clone().nms(heatmap_1d.clone(), nms_options);
+
+        if kept_indices.dims()[0] == 0 {
+            return (Vec::new(), Vec::new());
+        }
+
+        let scale_bbox = Tensor::<2>::from_data(
+            TensorData::new(
+                vec![
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                ],
+                [1, 4],
+            ),
+            &device,
         );
 
-        dets = dets
-            .into_iter()
-            .map(|mut bbbox| {
-                bbbox.xmin /= sizes.width_scale;
-                bbbox.xmax /= sizes.width_scale;
-                bbbox.ymin /= sizes.height_scale;
-                bbbox.ymax /= sizes.height_scale;
-                bbbox
-            })
-            .collect();
+        let scale_lms = Tensor::<2>::from_data(
+            TensorData::new(
+                vec![
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                    sizes.width_scale,
+                    sizes.height_scale,
+                ],
+                [1, 10],
+            ),
+            &device,
+        );
 
-        // Scale landmarks
-        lms = lms
-            .into_iter()
-            .map(|mut landmark| {
-                for i in 0..5 {
-                    landmark[i] = (
-                        landmark[i].0 / sizes.width_scale,
-                        landmark[i].1 / sizes.height_scale,
-                    )
-                }
-                landmark
-            })
-            .collect();
+        // Filter out bad anchors and scale natively using division math mapping
+        let kept_bboxes = bboxes.select(0, kept_indices.clone()) / scale_bbox;
+        let kept_lms = lms.select(0, kept_indices.clone()) / scale_lms;
+        let kept_scores = heatmap_1d.select(0, kept_indices);
 
-        (dets, lms)
-    }
-
-    fn decode(
-        &self,
-        heatmap: Tensor<4>,
-        scale: Tensor<4>,
-        offset: Tensor<4>,
-        landmark: Tensor<4>,
-        sizes: ResizedDimensions,
-        confidence_threshold: f32,
-        nms_threshold: f32,
-    ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
-        // np.squeeze remove all dims that have a size of 1, but it will not work with burn
-        // since I know only the dim 1 of the heapmap is 1 I will use squeeze on the dim 1
-        let heatmap = heatmap.squeeze_dims::<2>(&[0, 1]);
-
-        let scale_dim2 = scale.dims()[2];
-        let scale_dim3 = scale.dims()[3];
-
-        let scale0: Tensor<2> = scale
-            .clone()
-            .slice([0..1, 0..1])
-            .reshape([scale_dim2, scale_dim3]);
-        let scale1: Tensor<2> = scale
-            .clone()
-            .slice([0..1, 1..2])
-            .reshape([scale_dim2, scale_dim3]);
-
-        let offset_dim2 = offset.dims()[2];
-        let offset_dim3 = offset.dims()[3];
-
-        let offset0 = offset
-            .clone()
-            .slice([0..1, 0..1])
-            .reshape([offset_dim2, offset_dim3]);
-        let offset1 = offset
-            .clone()
-            .slice([0..1, 1..2])
-            .reshape([offset_dim2, offset_dim3]);
-
-        let t = heatmap.clone().greater_elem(confidence_threshold).nonzero();
-        let c0: Vec<u32> = t[0]
-            .clone()
+        // Download ONLY the severely reduced data tensor down to the Host CPU
+        let final_bboxes_data = kept_bboxes
             .into_data()
-            .convert_dtype(burn::tensor::DType::U32)
-            .to_vec()
-            .unwrap();
-        let c1: Vec<u32> = t[1]
-            .clone()
+            .to_vec::<f32>()
+            .expect("Read bboxes");
+        let final_scores_data = kept_scores
             .into_data()
-            .convert_dtype(burn::tensor::DType::U32)
-            .to_vec()
-            .unwrap();
+            .to_vec::<f32>()
+            .expect("Read scores");
+        let final_lms_data = kept_lms
+            .into_data()
+            .to_vec::<f32>()
+            .expect("Read landmarks");
 
-        let mut boxes = Vec::new();
-        let mut lms = Vec::new();
+        let num_kept = final_scores_data.len();
+        let mut final_boxes = Vec::with_capacity(num_kept);
+        let mut final_landmarks = Vec::with_capacity(num_kept);
 
-        if !c0.is_empty() {
-            for i in 0..c0.len() {
-                let ci0 = c0[i] as usize;
-                let ci1 = c1[i] as usize;
+        for i in 0..num_kept {
+            final_boxes.push(BoundingBox {
+                xmin: final_bboxes_data[i * 4 + 0],
+                ymin: final_bboxes_data[i * 4 + 1],
+                xmax: final_bboxes_data[i * 4 + 2],
+                ymax: final_bboxes_data[i * 4 + 3],
+                confidence: final_scores_data[i],
+            });
 
-                let s0: f32 = scale0
-                    .clone()
-                    .slice([ci0, ci1])
-                    .exp()
-                    .mul_scalar(4.0)
-                    .into_scalar();
-                let s1: f32 = scale1
-                    .clone()
-                    .slice([ci0, ci1])
-                    .exp()
-                    .mul_scalar(4.0)
-                    .into_scalar();
-
-                let o0 = offset0.clone().slice([ci0, ci1]);
-                let o1 = offset1.clone().slice([ci0, ci1]);
-
-                let score = heatmap.clone().slice([ci0, ci1]);
-
-                let mut x1 = f32::max(
-                    0.0,
-                    (ci1 as f32 + o1.into_scalar::<f32>() + 0.5) * 4.0 - s1 / 2.0,
+            let mut lm: Landmarks = [(0.0, 0.0); 5];
+            for n in 0..5 {
+                lm[n] = (
+                    final_lms_data[i * 10 + n * 2],
+                    final_lms_data[i * 10 + n * 2 + 1],
                 );
-                let mut y1 = f32::max(
-                    0.0,
-                    (ci0 as f32 + o0.into_scalar::<f32>() + 0.5) * 4.0 - s0 / 2.0,
-                );
-
-                x1 = f32::min(x1, sizes.width as f32);
-                y1 = f32::min(y1, sizes.height as f32);
-
-                let x2 = f32::min(x1 + s1, sizes.width as f32);
-                let y2 = f32::min(y1 + s0, sizes.height as f32);
-
-                boxes.push(BoundingBox {
-                    xmin: x1,
-                    ymin: y1,
-                    xmax: x2,
-                    ymax: y2,
-                    confidence: score.into_scalar(),
-                });
-
-                let mut lm: Landmarks = [(0.0, 0.0); 5];
-                for j in 0..5 {
-                    let lm0 = landmark
-                        .clone()
-                        .slice([0, j * 2, ci0, ci1])
-                        .into_scalar::<f32>();
-                    let lm1 = landmark
-                        .clone()
-                        .slice([0, j * 2 + 1, ci0, ci1])
-                        .into_scalar::<f32>();
-
-                    lm[j] = (lm1 * s1 + x1, lm0 * s0 + y1);
-                }
-                lms.push(lm);
             }
-            non_maximum_suppression(&mut boxes, &mut lms, nms_threshold);
+            final_landmarks.push(lm);
         }
-        (boxes, lms)
+
+        (final_boxes, final_landmarks)
     }
 }
 
