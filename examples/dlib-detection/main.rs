@@ -1,4 +1,3 @@
-use burn::backend::NdArray;
 use image::RgbImage;
 
 use deepface::detection::{Detector, DlibDetection};

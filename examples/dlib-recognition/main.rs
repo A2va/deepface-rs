@@ -1,4 +1,4 @@
-use burn::{backend::NdArray, Tensor};
+use burn::Tensor;
 use image::DynamicImage;
 
 use deepface::metrics::{verify, DistanceMethod};

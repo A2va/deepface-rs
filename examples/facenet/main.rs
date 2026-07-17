@@ -1,4 +1,4 @@
-use burn::{backend::NdArray, Tensor};
+use burn::Tensor;
 use image::{DynamicImage, GenericImage};
 
 use deepface::detection::{Detector, Yunet};
