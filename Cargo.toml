@@ -4,30 +4,36 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
+resolver = "3"
 members = [
-    ".",
     "calibration",
 ]
 
+[workspace.dependencies]
+burn = {version = "0.21", features = ["vision"]}
+
 [dependencies]
 image = "0.25"
-burn = {version = "0.21", features = ["ndarray", "vision"]}
+burn = { workspace = true }
 burn-store = "0.21"
-dlib_sys = {package = "dlib", git = "https://github.com/a2va/dlib-rs", rev = "4e8c8c8", optional = true, features = ["embed-all"]}
+dlib_sys = { package = "dlib", git = "https://github.com/a2va/dlib-rs", rev = "4e8c8c8", optional = true, features = ["embed-all"]}
 
 thiserror = "1"
 tuple-conv = "1.0.1"
 
 [build-dependencies]
-reqwest = {version = "0.12", features = ["blocking", "rustls-tls"]}
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls"]}
 burn-onnx = "0.21"
+
+[dev-dependencies]
+burn = { workspace = true, features = ["ndarray", "vision", "flex"]}
 
 # [target.'cfg(target_arch = "wasm32")'.dependencies]
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-# default = ["verify", "yunet", "centerface", "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
-default = ["verify"]
+default = ["verify", "yunet", "centerface", "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
+# default = ["verify"]
 
 verify = []
 
