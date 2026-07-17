@@ -19,8 +19,7 @@ pub mod recognition;
 
 pub mod metrics;
 
-use burn::prelude::Device;
-use burn::tensor::{Element, Tensor, TensorData};
+use burn::tensor::{Device, Element, Tensor, TensorData};
 use image::{DynamicImage, RgbImage, SubImage};
 
 /// Trait to convert an image-like input into a 3D tensor with shape `[C, H, W]`

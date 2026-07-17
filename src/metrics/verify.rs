@@ -1,4 +1,4 @@
-use burn::prelude::Tensor;
+use burn::Tensor;
 
 use crate::metrics::distance::{distance, DistanceMethod};
 use crate::recognition::RecognitionModel;

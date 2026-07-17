@@ -106,7 +106,7 @@ fn resize_to_divisor_multiple(
     }
 }
 
-use burn::prelude::Tensor;
+use burn::Tensor;
 
 /// Resize a tensor to match model input requirements.
 /// The tensor shape is expected to be [C, H, W] and will be resized to [1, C, new_H, new_W].

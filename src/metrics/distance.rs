@@ -1,6 +1,6 @@
-use burn::prelude::Tensor;
 use burn::tensor::linalg::{cosine_similarity, l2_norm};
 use burn::tensor::FloatDType;
+use burn::Tensor;
 
 /// All distance methods supported in [`distance`].
 #[derive(Clone, Copy)]
