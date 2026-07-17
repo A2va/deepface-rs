@@ -1,3 +1,4 @@
+use burn::vision::NmsOptions;
 use dlib_sys::{
     FaceDetector, FaceDetectorCnn, FaceDetectorTrait, ImageMatrix, LandmarkPredictor,
     LandmarkPredictorTrait,
@@ -56,11 +57,11 @@ impl Detector for DlibDetection {
     ///
     /// Unlike most models, which return a confidence score between 0 and 1,
     /// Dlib can return a value lower than 0, up to a maximum of 3.5, based on this [issue](https://github.com/davisking/dlib/issues/761).
+    /// Also the nms options are not supported for this model.
     fn detect<I: ImageToTensor>(
         &self,
         input: &I,
-        _confidence_threshold: f32,
-        _nms_threshold: Option<f32>,
+        _nms_options: NmsOptions,
     ) -> Vec<FacialAreaRegion> {
         let tensor = input.to_tensor().int();
 

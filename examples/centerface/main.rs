@@ -1,4 +1,4 @@
-use deepface::detection::{CenterFace, Detector};
+use deepface::detection::{CenterFace, Detector, NmsOptions};
 use image::ImageBuffer;
 
 // Assumes x1 <= x2 and y1 <= y2
@@ -29,7 +29,13 @@ fn main() {
 
     let img = image::open("dataset/img1.jpg").unwrap();
 
-    let results = model.detect(&img, 0.8, None);
+    let results = model.detect(
+        &img,
+        NmsOptions {
+            score_threshold: 0.8,
+            ..NmsOptions::default()
+        },
+    );
 
     let mut img = img.to_rgb8();
     let result = results.first().unwrap();

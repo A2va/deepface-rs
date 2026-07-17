@@ -1,4 +1,4 @@
-use deepface::detection::{Detector, Yunet};
+use deepface::detection::{Detector, NmsOptions, Yunet};
 
 use image::RgbImage;
 
@@ -23,7 +23,13 @@ fn main() {
 
     let img = image::open("dataset/img1.jpg").unwrap();
 
-    let results = model.detect(&img, 0.8, None);
+    let results = model.detect(
+        &img,
+        NmsOptions {
+            score_threshold: 0.8,
+            ..NmsOptions::default()
+        },
+    );
 
     let mut img = img.to_rgb8();
     let result = results.first().unwrap();

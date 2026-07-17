@@ -47,8 +47,7 @@ impl CenterFace {
         offset: Tensor<4>,
         scale: Tensor<4>,
         sizes: ResizedDimensions,
-        confidence_threshold: f32,
-        nms_threshold: f32,
+        nms_options: NmsOptions,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         let device = heatmap.device();
 
@@ -112,13 +111,6 @@ impl CenterFace {
         // Cat vertically into [10, H*W], then transpose into [H*W, 10]
         let lms = Tensor::cat(lm_tensors, 0).transpose();
 
-        let nms_options = NmsOptions {
-            iou_threshold: nms_threshold,
-            score_threshold: confidence_threshold, // NMS dynamically filters this for us securely
-            max_output_boxes: 500,
-        };
-
-        // Leverage Burn's hardware-accelerated NMS
         let kept_indices = bboxes.clone().nms(heatmap_1d.clone(), nms_options);
 
         if kept_indices.dims()[0] == 0 {
@@ -162,7 +154,6 @@ impl CenterFace {
         let kept_lms = lms.select(0, kept_indices.clone()) / scale_lms;
         let kept_scores = heatmap_1d.select(0, kept_indices);
 
-        // Download ONLY the severely reduced data tensor down to the Host CPU
         let final_bboxes_data = kept_bboxes
             .into_data()
             .to_vec::<f32>()
@@ -213,23 +204,13 @@ impl Detector for CenterFace {
     fn detect<I: ImageToTensor>(
         &self,
         input: &I,
-        confidence_threshold: f32,
-        nms_threshold: Option<f32>,
+        nms_options: NmsOptions,
     ) -> Vec<FacialAreaRegion> {
-        let nms_threshold = nms_threshold.unwrap_or(0.3);
         let (tensor, sizes) = resize_tensor(input.to_tensor(), Self::DIVISOR, Self::MAX_SIZE);
 
         let (heatmap, scale, offset, lms) = self.model.forward(tensor);
 
-        let (detections, lms) = self.postprocess(
-            heatmap,
-            lms,
-            offset,
-            scale,
-            sizes,
-            confidence_threshold,
-            nms_threshold,
-        );
+        let (detections, lms) = self.postprocess(heatmap, lms, offset, scale, sizes, nms_options);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
@@ -268,7 +249,7 @@ impl Detector for CenterFace {
 
 #[cfg(test)]
 mod tests {
-    use crate::detection::{CenterFace, Detector};
+    use crate::detection::{CenterFace, Detector, NmsOptions};
 
     #[test]
     fn one_face() {
@@ -277,7 +258,13 @@ mod tests {
         let model: CenterFace = CenterFace::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img, 0.8, None);
+        let results = model.detect(
+            &img,
+            NmsOptions {
+                score_threshold: 0.8,
+                ..NmsOptions::default()
+            },
+        );
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }

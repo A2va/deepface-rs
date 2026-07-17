@@ -13,6 +13,8 @@ pub mod dlib;
 #[cfg(feature = "dlib-detection")]
 pub use crate::detection::dlib::DlibDetection;
 
+pub use burn::vision::NmsOptions;
+
 use crate::ImageToTensor;
 
 /// Internal trait to handle detector metadata.
@@ -31,12 +33,8 @@ pub trait Detector {
     /// It is not possible to choose the device for an image, it will use the default one for that backend.
     /// - `confidence_threshold`: Minimum confidence to consider a detection valid
     /// - `nms_threshold`: Optional IoU threshold for non-maximum suppression
-    fn detect<I: ImageToTensor>(
-        &self,
-        input: &I,
-        confidence_threshold: f32,
-        nms_threshold: Option<f32>,
-    ) -> Vec<FacialAreaRegion>;
+    fn detect<I: ImageToTensor>(&self, input: &I, nms_options: NmsOptions)
+        -> Vec<FacialAreaRegion>;
 }
 
 #[derive(Clone, Copy, Debug)]

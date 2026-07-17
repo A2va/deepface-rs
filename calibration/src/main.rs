@@ -1,15 +1,14 @@
 use anyhow::Context;
-
 use burn::Tensor;
-use deepface::DlibDetectorModel;
-use deepface::ImageToTensor;
 use image::{DynamicImage, GenericImageView};
 
+use deepface::detection::{Detector, NmsOptions, Yunet};
 use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};
 
-use deepface::detection::{Detector, Yunet};
 use deepface::metrics::{distance, DistanceMethod};
 use deepface::recognition::NormalizationMethod;
+use deepface::DlibDetectorModel;
+use deepface::ImageToTensor;
 
 use std::error::Error;
 use std::fs::File;
@@ -44,7 +43,13 @@ fn get_model(name: &str) -> AnyModel {
 }
 
 fn embed(img: DynamicImage, detector: &impl Detector, model: &AnyModel) -> Tensor<1> {
-    let results = detector.detect(&img, 0.8, None);
+    let results = detector.detect(
+        &img,
+        NmsOptions {
+            score_threshold: 0.8,
+            ..NmsOptions::default()
+        },
+    );
     let results = results.first().unwrap();
 
     let subimg = img.view(results.x, results.y, results.w, results.h);

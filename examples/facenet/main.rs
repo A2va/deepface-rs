@@ -1,13 +1,19 @@
 use burn::Tensor;
 use image::{DynamicImage, GenericImage};
 
-use deepface::detection::{Detector, Yunet};
+use deepface::detection::{Detector, NmsOptions, Yunet};
 use deepface::metrics::{verify, DistanceMethod};
 use deepface::recognition::{FaceNet512, RecognitionModel, Recognizer};
 
 fn embed(mut img: DynamicImage) -> Tensor<1> {
     let model: Yunet = Yunet::new();
-    let results = model.detect(&img, 0.8, None);
+    let results = model.detect(
+        &img,
+        NmsOptions {
+            score_threshold: 0.8,
+            ..NmsOptions::default()
+        },
+    );
     let results = results.first().unwrap();
 
     let subimg = img.sub_image(results.x, results.y, results.w, results.h);

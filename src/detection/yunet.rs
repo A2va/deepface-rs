@@ -55,8 +55,7 @@ impl Yunet {
         &self,
         outputs: Vec<Tensor<3>>,
         sizes: ResizedDimensions,
-        confidence_threshold: f32,
-        nms_threshold: f32,
+        nms_options: NmsOptions,
     ) -> (Vec<BoundingBox>, Vec<Landmarks>) {
         let device = outputs[0].device();
         let strides = [8, 16, 32];
@@ -137,12 +136,6 @@ impl Yunet {
         let bboxes_2d = all_bboxes.reshape([total_n, 4]);
         let scores_1d = all_scores.reshape([total_n]);
         let lms_2d = all_lms.reshape([total_n, 10]);
-
-        let nms_options = NmsOptions {
-            iou_threshold: nms_threshold,
-            score_threshold: confidence_threshold,
-            max_output_boxes: 500,
-        };
 
         let kept_indices = bboxes_2d.clone().nms(scores_1d.clone(), nms_options);
 
@@ -231,16 +224,13 @@ impl Detector for Yunet {
     fn detect<I: ImageToTensor>(
         &self,
         input: &I,
-        confidence_threshold: f32,
-        nms_threshold: Option<f32>,
+        nms_options: NmsOptions,
     ) -> Vec<FacialAreaRegion> {
-        let nms_threshold = nms_threshold.unwrap_or(0.3);
         let (tensor, sizes) = resize_tensor(input.to_tensor(), Self::DIVISOR, Self::MAX_SIZE);
 
         let outputs = self.model.forward(tensor).to_vec();
 
-        let (detections, lms) =
-            self.postprocess(outputs, sizes, confidence_threshold, nms_threshold);
+        let (detections, lms) = self.postprocess(outputs, sizes, nms_options);
 
         let mut results = Vec::new();
         for (i, detection) in detections.iter().enumerate() {
@@ -280,7 +270,7 @@ impl Detector for Yunet {
 
 #[cfg(test)]
 mod tests {
-    use crate::detection::{Detector, Yunet};
+    use crate::detection::{Detector, NmsOptions, Yunet};
 
     #[test]
     fn one_face() {
@@ -288,7 +278,13 @@ mod tests {
         let model: Yunet = Yunet::new();
 
         let img = image::open(dataset_dir.join("one_face.jpg")).unwrap();
-        let results = model.detect(&img, 0.8, None);
+        let results = model.detect(
+            &img,
+            NmsOptions {
+                score_threshold: 0.8,
+                ..NmsOptions::default()
+            },
+        );
 
         assert_eq!(results.len(), 1, "one face should have been detected");
     }
