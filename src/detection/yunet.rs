@@ -5,8 +5,8 @@ use burn::{
 use tuple_conv::RepeatedTuple;
 
 use super::{
-    resize_tensor, BoundingBox, Detector, DetectorMetadata, FacialAreaRegion, Landmarks,
-    ResizedDimensions,
+    resize_tensor, BoundingBox, Detector, DetectorMetadata,
+    FacialAreaRegion, Landmarks, ResizedDimensions,
 };
 use crate::ImageToTensor;
 
@@ -260,6 +260,7 @@ impl Detector for Yunet {
                 mouth_right: Some(right_mouth),
                 mouth_left: Some(left_mouth),
                 confidence: Some(confidence),
+                landmarks: Some(*landmark),
             };
             results.push(facial_area);
         }

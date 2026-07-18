@@ -1,5 +1,8 @@
-use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
-use crate::ImageToTensor;
+use super::{align_face, normalize_tensor, NormalizationMethod, Recognizer, RecognizerMetadata};
+use crate::{
+    detection::FacialAreaRegion,
+    ImageToTensor,
+};
 use burn::tensor::Tensor;
 
 mod facenet512 {
@@ -32,11 +35,18 @@ impl Recognizer for FaceNet512 {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::FaceNet`]
-    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
+    fn embed<I: ImageToTensor>(
+        &self,
+        input: &I,
+        face: FacialAreaRegion,
+        norm: Option<NormalizationMethod>,
+    ) -> Tensor<1> {
         let tensor = input.to_tensor();
-        let norm = norm.unwrap_or(NormalizationMethod::FaceNet);
 
-        let tensor = normalize_tensor(resize(tensor, Self::SHAPE), norm);
+        let tensor = align_face(tensor, &face, Self::SHAPE);
+
+        let norm = norm.unwrap_or(NormalizationMethod::FaceNet);
+        let tensor = normalize_tensor(tensor, norm);
 
         // Facenet expects input shape as  [N, H, W, C]
         let tensor = tensor.permute([0, 2, 3, 1]);

@@ -1,5 +1,5 @@
-use super::{normalize_tensor, resize, NormalizationMethod, Recognizer, RecognizerMetadata};
-use crate::ImageToTensor;
+use super::{align_face, normalize_tensor, NormalizationMethod, Recognizer, RecognizerMetadata};
+use crate::{detection::FacialAreaRegion, ImageToTensor};
 use burn::tensor::Tensor;
 
 mod deepid {
@@ -29,11 +29,16 @@ impl Recognizer for DeepID {
     /// See [`super::Recognizer`].
     ///
     /// If norm is not specified it will use [`NormalizationMethod::ZeroOne`]
-    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
+    fn embed<I: ImageToTensor>(
+        &self,
+        input: &I,
+        face: FacialAreaRegion,
+        norm: Option<NormalizationMethod>,
+    ) -> Tensor<1> {
         let tensor = input.to_tensor();
         let norm = norm.unwrap_or(NormalizationMethod::ZeroOne);
 
-        let tensor = normalize_tensor(resize(tensor, Self::SHAPE), norm);
+        let tensor = normalize_tensor(align_face(tensor, &face, Self::SHAPE), norm);
 
         // DeepID expects input shape as [B, H, W, C]
         let tensor = tensor.permute([0, 2, 3, 1]);

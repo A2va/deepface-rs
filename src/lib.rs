@@ -28,13 +28,14 @@ use image::{DynamicImage, RgbImage, SubImage};
 /// allowing consistent conversion across image inputs and tensor data.
 ///
 /// The resulting tensor is `[C, H, W]`.
+/// If you want your tensor to be on a specific device, you must set the device for that tensor before calling this function.
+/// It is not possible to choose the device for an image, it will use the default one for that backend.
 pub trait ImageToTensor {
     /// The ouput tensor format is [C, H, W], where C is the number of channel,
-    /// H the height and W the width
+    /// H the height and W the width.
     fn to_tensor(&self) -> Tensor<3>;
 }
 
-/// Converts a `DynamicImage` to a tensor of shape `[C, H, W]`, in RGB format.
 impl ImageToTensor for DynamicImage {
     fn to_tensor(&self) -> Tensor<3> {
         let rgb_image = self.to_rgb8();

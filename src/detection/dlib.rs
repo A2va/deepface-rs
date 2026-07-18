@@ -117,6 +117,9 @@ impl Detector for DlibDetection {
                 mouth_left: left_mouth.map(|x| (x[0] as u32, x[1] as u32)),
                 mouth_right: right_mouth.map(|x| (x[0] as u32, x[1] as u32)),
                 confidence: Some(rect.confidence as f32),
+                // Dlib returns integer landmark coordinates, not precise enough
+                // for sub-pixel alignment, so we don't expose them.
+                landmarks: None,
             };
             results.push(facial_area);
         }

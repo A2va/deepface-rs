@@ -1,13 +1,25 @@
 use burn::Tensor;
+
 use image::DynamicImage;
 
+use deepface::detection::{Detector, NmsOptions, Yunet};
 use deepface::metrics::{verify, DistanceMethod};
 use deepface::recognition::{DlibRecognition, RecognitionModel, Recognizer};
 use deepface::DlibDetectorModel;
 
 fn embed(img: DynamicImage) -> Tensor<1> {
+    let model: Yunet = Yunet::new();
+    let results = model.detect(
+        &img,
+        NmsOptions {
+            score_threshold: 0.8,
+            ..NmsOptions::default()
+        },
+    );
+    let result = results.first().unwrap();
+
     let model: DlibRecognition = DlibRecognition::new(DlibDetectorModel::Hog);
-    model.embed(&img, None)
+    model.embed(&img, *result, None)
 }
 
 fn main() {

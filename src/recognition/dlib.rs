@@ -5,7 +5,7 @@ use dlib_sys::{
 };
 
 use super::{NormalizationMethod, Recognizer, RecognizerMetadata};
-use crate::{DlibDetectorModel, ImageToTensor};
+use crate::{detection::FacialAreaRegion, DlibDetectorModel, ImageToTensor};
 
 /// Dlib face recognition using CNN model.
 ///
@@ -67,7 +67,14 @@ impl Recognizer for DlibRecognition {
     /// If the input image has already been cropped to include the face,
     /// this can trigger a panic because the integrated detection model hasn't found a face.
     /// In this case, try providing the full image directly.
-    fn embed<I: ImageToTensor>(&self, input: &I, _norm: Option<NormalizationMethod>) -> Tensor<1> {
+    ///
+    /// This model doesn't support image alignment.
+    fn embed<I: ImageToTensor>(
+        &self,
+        input: &I,
+        _face: FacialAreaRegion,
+        _norm: Option<NormalizationMethod>,
+    ) -> Tensor<1> {
         let tensor = input.to_tensor().int();
 
         // Dlib expects u8 tensor

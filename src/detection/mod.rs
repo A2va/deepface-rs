@@ -49,6 +49,7 @@ pub struct FacialAreaRegion {
     pub nose: Option<(u32, u32)>,
     pub mouth_right: Option<(u32, u32)>,
     pub mouth_left: Option<(u32, u32)>,
+    pub(crate) landmarks: Option<Landmarks>,
 }
 
 /// Represents resized dimensions and scale factors.
@@ -124,18 +125,16 @@ fn resize_tensor(
     (interpolate.forward(tensor.unsqueeze::<4>()), sizes) // [B, C, H, W]
 }
 
-/// Represents a set of facial landmarks as 2D coordinates.
-///
 /// The landmarks are typically ordered as:
+/// Canonical order:
 /// - Right eye
 /// - Left eye
 /// - Nose
 /// - Right mouth corner
 /// - Left mouth corner
 ///
-/// Note that the order is not strictly enforced, and the array contains 5 points
-/// represented as floating-point (x, y) coordinates.
-type Landmarks = [(f32, f32); 5];
+/// Note that the order should be preserved acros all detection.
+pub(crate) type Landmarks = [(f32, f32); 5];
 
 struct BoundingBox {
     pub xmin: f32,

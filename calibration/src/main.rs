@@ -2,7 +2,7 @@ use anyhow::Context;
 use burn::Tensor;
 use image::{DynamicImage, GenericImageView};
 
-use deepface::detection::{Detector, NmsOptions, Yunet};
+use deepface::detection::{Detector, FacialAreaRegion, NmsOptions, Yunet};
 use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};
 
 use deepface::metrics::{distance, DistanceMethod};
@@ -22,11 +22,16 @@ enum AnyModel {
 }
 
 impl Recognizer for AnyModel {
-    fn embed<I: ImageToTensor>(&self, input: &I, norm: Option<NormalizationMethod>) -> Tensor<1> {
+    fn embed<I: ImageToTensor>(
+        &self,
+        input: &I,
+        face: FacialAreaRegion,
+        norm: Option<NormalizationMethod>,
+    ) -> Tensor<1> {
         match self {
-            AnyModel::DeepID(m) => m.embed(input, norm),
-            AnyModel::FaceNet512(m) => m.embed(input, norm),
-            AnyModel::DlibRecognition(m) => m.embed(input, norm),
+            AnyModel::DeepID(m) => m.embed(input, face, norm),
+            AnyModel::FaceNet512(m) => m.embed(input, face, norm),
+            AnyModel::DlibRecognition(m) => m.embed(input, face, norm),
         }
     }
 }
@@ -50,10 +55,8 @@ fn embed(img: DynamicImage, detector: &impl Detector, model: &AnyModel) -> Tenso
             ..NmsOptions::default()
         },
     );
-    let results = results.first().unwrap();
-
-    let subimg = img.view(results.x, results.y, results.w, results.h);
-    model.embed(&subimg, Some(NormalizationMethod::ZeroOne))
+    let result = results.first().unwrap();
+    model.embed(&img, *result, Some(NormalizationMethod::ZeroOne))
 }
 
 fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {
