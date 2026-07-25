@@ -44,6 +44,10 @@ fn main() {
 
     draw_rect(&mut img, x as u32, x + w, y, y + h, &[0, 255, 0]);
 
+    if let Some(confidence) = result.confidence {
+        println!("confidence: {:?}", confidence);
+    }
+
     if let Some(left_eye) = result.left_eye {
         println!("left_eye: {:?}", left_eye);
         let pixel = img.get_pixel_mut(left_eye.0, left_eye.1);

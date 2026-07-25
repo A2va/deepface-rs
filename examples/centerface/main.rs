@@ -45,10 +45,14 @@ fn main() {
     let w = result.w;
     let h = result.h;
 
-    println!("x,y: {},{}", x, y);
-    println!("w,h: {},{}", w, h);
+    println!("x, y: {}, {}", x, y);
+    println!("w, h: {}, {}", w, h);
 
     draw_rect(&mut img, x as u32, x + w, y, y + h, &[0, 255, 0]);
+
+    if let Some(confidence) = result.confidence {
+        println!("confidence: {:?}", confidence);
+    }
 
     if let Some(right_eye) = result.right_eye {
         println!("right_eye: {:?}", right_eye);
