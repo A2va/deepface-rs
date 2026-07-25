@@ -36,7 +36,7 @@ fn detection_models() {
     let path = Path::new("models/detection");
     std::fs::create_dir_all(path).unwrap();
 
-    const WEIGHTS: [(&'static str, &'static str); 2] = [
+    const WEIGHTS: [(&'static str, &'static str); 4] = [
         (
             "https://github.com/A2va/deepface-rs/releases/download/v0.0/centerface.onnx",
             "centerface.onnx",
@@ -44,6 +44,14 @@ fn detection_models() {
         (
             "https://github.com/A2va/deepface-rs/releases/download/v0.0/yunet.onnx",
             "yunet.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/scrfd_10g_kps.onnx",
+            "scrfd_10g.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/scrfd_500m_kps.onnx",
+            "scrfd_500m.onnx",
         ),
     ];
 
@@ -107,8 +115,11 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DETECTION_CENTERFACE");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DETECTION_YUNET");
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_DEEPID");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_SCRFD_10G");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_SCRFD_500M");
+
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_FACENET512");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_DEEPID");
 
     test_files();
     detection_models();

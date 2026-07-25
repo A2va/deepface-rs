@@ -35,14 +35,16 @@ burn = { workspace = true, features = ["ndarray", "vision", "flex"]}
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-default = ["verify", "yunet", "centerface", "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
-# default = ["verify"]
+# default = ["verify", "yunet", "centerface", "scrfd-10g", "scrfd-500m" , "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
+default = ["verify"]
 
 verify = []
 
 # Detection models
 yunet = []
 centerface = []
+scrfd-10g = []
+scrfd-500m = []
 dlib-detection = ["dlib_sys", "dlib_sys/embed-fd-nn", "dlib_sys/embed-lp"]
 
 # Recognition models
@@ -63,6 +65,9 @@ required-features = ["centerface"]
 [[example]]
 name = "dlib-detection"
 required-features = ["dlib-detection"]
+[[example]]
+name = "scrfd"
+required-features = ["scrfd-10g", "scrfd-500m"]
 
 # Recognition examples
 [[example]]

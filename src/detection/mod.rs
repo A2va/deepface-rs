@@ -8,6 +8,13 @@ pub mod yunet;
 #[cfg(feature = "yunet")]
 pub use crate::detection::yunet::Yunet;
 
+#[cfg(any(feature = "scrfd-10g", feature = "scrfd-500m"))]
+pub mod scrfd;
+#[cfg(feature = "scrfd-10g")]
+pub use crate::detection::scrfd::Scrfd10g;
+#[cfg(feature = "scrfd-500m")]
+pub use crate::detection::scrfd::Scrfd500m;
+
 #[cfg(feature = "dlib-detection")]
 pub mod dlib;
 #[cfg(feature = "dlib-detection")]
