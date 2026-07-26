@@ -149,6 +149,7 @@ pub(crate) fn align_face(
 ) -> Tensor<4> {
     let (img_w, img_h) = (image.dims()[2] as u32, image.dims()[1] as u32);
 
+    // Pad and crop the image
     let pad = (face.w.max(face.h) / 2).max(1);
     let fx = face.x as i32;
     let fy = face.y as i32;
@@ -161,18 +162,17 @@ pub(crate) fn align_face(
 
     let cropped = crop_tensor(image, crop_x, crop_y, crop_w, crop_h);
 
-    // Landmarks are full-image coords; shift into the padded-crop frame and
-    // scale to the resized output dims.
-    let scale_x = shape.0 as f32 / crop_w as f32;
-    let scale_y = shape.1 as f32 / crop_h as f32;
     let Some(landmarks) = &face.landmarks else {
         panic!("face_alignment requires sub-pixel landmarks; detectors that only provide integer landmarks (e.g. Dlib) cannot be used with this recognizer");
     };
-    let landmarks: Landmarks =
-        landmarks.map(|(x, y)| ((x - crop_x as f32) * scale_x, (y - crop_y as f32) * scale_y));
 
-    let resized = resize(cropped, shape);
-    let (aligned, _) = face_alignment(resized, &landmarks, shape);
+    // Shift landmarks into the padded-crop coordinate space via pure translation.
+    let landmarks: Landmarks = landmarks.map(|(x, y)| (x - crop_x as f32, y - crop_y as f32));
+
+    // face_alignment calculates the similarity transform and bilinearly samples
+    // directly from the cropped region into the 112x112 (depending on the model) output in one single step.
+    let (aligned, _) = face_alignment(cropped.clone().unsqueeze::<4>(), &landmarks, shape);
+
     aligned
 }
 
