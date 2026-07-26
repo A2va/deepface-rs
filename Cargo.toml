@@ -42,8 +42,10 @@ burn = { workspace = true, features = ["ndarray", "vision", "flex"]}
 #   "scrfd-10g",
 #   "scrfd-500m",
 #   "dlib-detection",
-#
+
 #   "deepid",
+#   "adaface-ir18",
+#   "adaface-ir101",
 #   "facenet512",
 #   "dlib-recognition"
 # ]
@@ -60,6 +62,8 @@ dlib-detection = ["dlib_sys", "dlib_sys/embed-fd-nn", "dlib_sys/embed-lp"]
 
 # Recognition models
 deepid = []
+adaface-ir18 = []
+adaface-ir101 = []
 facenet512 = []
 dlib-recognition = ["dlib_sys", "dlib_sys/embed-fe-nn"]
 
@@ -84,6 +88,9 @@ required-features = ["scrfd-10g", "scrfd-500m"]
 [[example]]
 name = "deepid"
 required-features = ["verify", "deepid"]
+[[example]]
+name = "adaface"
+required-features = ["verify", "scrfd-10g", "adaface-ir18", "adaface-ir101"]
 [[example]]
 name = "facenet"
 required-features = ["verify", "facenet512"]

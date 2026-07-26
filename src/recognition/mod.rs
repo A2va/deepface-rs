@@ -1,12 +1,19 @@
-#[cfg(feature = "facenet512")]
-pub mod facenet;
-#[cfg(feature = "facenet512")]
-pub use crate::recognition::facenet::FaceNet512;
-
 #[cfg(feature = "deepid")]
 pub mod deepid;
 #[cfg(feature = "deepid")]
 pub use crate::recognition::deepid::DeepID;
+
+#[cfg(any(feature = "adaface-ir101", feature = "adaface-ir18"))]
+pub mod adaface;
+#[cfg(feature = "adaface-ir101")]
+pub use crate::recognition::adaface::AdaFaceIR101;
+#[cfg(feature = "adaface-ir18")]
+pub use crate::recognition::adaface::AdaFaceIR18;
+
+#[cfg(feature = "facenet512")]
+pub mod facenet;
+#[cfg(feature = "facenet512")]
+pub use crate::recognition::facenet::FaceNet512;
 
 #[cfg(feature = "dlib-recognition")]
 pub mod dlib;
@@ -110,7 +117,7 @@ fn normalize_tensor(tensor: Tensor<4>, norm: NormalizationMethod) -> Tensor<4> {
         NormalizationMethod::VGGFace2 => {
             normalize_with_means(tensor, [91.4953, 103.8827, 131.0912])
         }
-        NormalizationMethod::ArcFace => (tensor - 127.5) / 128.0,
+        NormalizationMethod::ArcFace => (tensor - 127.5) / 127.5,
     }
 }
 

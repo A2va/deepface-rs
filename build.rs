@@ -79,7 +79,7 @@ fn detection_models() {
 fn recognition_models() {
     let path = Path::new("models/recognition");
     std::fs::create_dir_all(path).unwrap();
-    const WEIGHTS: [(&'static str, &'static str); 2] = [
+    const WEIGHTS: [(&'static str, &'static str); 4] = [
         (
             "https://github.com/A2va/deepface-rs/releases/download/v0.0/deepid.onnx",
             "deepid.onnx",
@@ -87,6 +87,14 @@ fn recognition_models() {
         (
             "https://github.com/A2va/deepface-rs/releases/download/v0.0/facenet512.onnx",
             "facenet512.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/adaface_ir_18.onnx",
+            "adaface_ir18.onnx",
+        ),
+        (
+            "https://github.com/A2va/deepface-rs/releases/download/v0.0/adaface_ir_101.onnx",
+            "adaface_ir101.onnx",
         ),
     ];
     for (url, filename) in WEIGHTS {
@@ -120,6 +128,8 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_FACENET512");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_DEEPID");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_ADAFACE_IR18");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_RECOGNITION_ADAFACE_IR101");
 
     test_files();
     detection_models();
