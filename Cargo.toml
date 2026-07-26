@@ -35,7 +35,18 @@ burn = { workspace = true, features = ["ndarray", "vision", "flex"]}
 # burn = { version = "0.17", default-features = false } # Default features disabled for wasm target
 
 [features]
-# default = ["verify", "yunet", "centerface", "scrfd-10g", "scrfd-500m" , "dlib-detection", "deepid", "facenet512", "dlib-recognition"]
+# default = [
+#   "verify",
+#   "yunet",
+#   "centerface",
+#   "scrfd-10g",
+#   "scrfd-500m",
+#   "dlib-detection",
+#
+#   "deepid",
+#   "facenet512",
+#   "dlib-recognition"
+# ]
 default = ["verify"]
 
 verify = []
