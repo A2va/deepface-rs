@@ -147,31 +147,12 @@ pub(crate) fn align_face(
     face: &FacialAreaRegion,
     shape: (u32, u32),
 ) -> Tensor<4> {
-    let (img_w, img_h) = (image.dims()[2] as u32, image.dims()[1] as u32);
-
-    // Pad and crop the image
-    let pad = (face.w.max(face.h) / 2).max(1);
-    let fx = face.x as i32;
-    let fy = face.y as i32;
-    let fw = face.w as i32;
-    let fh = face.h as i32;
-    let crop_x = (fx - pad as i32).max(0) as usize;
-    let crop_y = (fy - pad as i32).max(0) as usize;
-    let crop_w = ((fx + fw + pad as i32) as u32).min(img_w) as usize - crop_x;
-    let crop_h = ((fy + fh + pad as i32) as u32).min(img_h) as usize - crop_y;
-
-    let cropped = crop_tensor(image, crop_x, crop_y, crop_w, crop_h);
-
     let Some(landmarks) = &face.landmarks else {
-        panic!("face_alignment requires sub-pixel landmarks; detectors that only provide integer landmarks (e.g. Dlib) cannot be used with this recognizer");
+        panic!("face_alignment requires sub-pixel landmarks.");
     };
 
-    // Shift landmarks into the padded-crop coordinate space via pure translation.
-    let landmarks: Landmarks = landmarks.map(|(x, y)| (x - crop_x as f32, y - crop_y as f32));
-
-    // face_alignment calculates the similarity transform and bilinearly samples
-    // directly from the cropped region into the 112x112 (depending on the model) output in one single step.
-    let (aligned, _) = face_alignment(cropped.clone().unsqueeze::<4>(), &landmarks, shape);
+    let image_4d = image.unsqueeze::<4>();
+    let (aligned, _) = face_alignment(image_4d, landmarks, shape);
 
     aligned
 }
@@ -338,9 +319,9 @@ fn bilinear_sample(image: Tensor<4>, grid: Tensor<4>) -> Tensor<4> {
     // Sub-pixel distances to each neighbor (dx0 + dx1 = 1 everywhere).
     // Weights are the product of horizontal and vertical distances.
     let dx0 = x1.clone() - x.clone();
-    let dx1 = x - x0.clone();
+    let dx1 = x.clone() - x0.clone();
     let dy0 = y1.clone() - y.clone();
-    let dy1 = y - y0.clone();
+    let dy1 = y.clone() - y0.clone();
     let w_tl = dx0.clone() * dy0.clone();
     let w_tr = dx1.clone() * dy0;
     let w_bl = dx0 * dy1.clone();
@@ -386,7 +367,22 @@ fn bilinear_sample(image: Tensor<4>, grid: Tensor<4>) -> Tensor<4> {
         + px_bl * w_to_3d(w_bl)
         + px_br * w_to_3d(w_br);
 
-    out_flat.reshape([batch_size, channels, out_h, out_w])
+    let out_tensor = out_flat.reshape([batch_size, channels, out_h, out_w]);
+
+    // Create a mask for invalid coordinates (out of bounds)
+    let invalid_mask = x
+        .clone()
+        .lower_elem(0.0)
+        .bool_or(x.greater_elem(max_x))
+        .bool_or(y.clone().lower_elem(0.0))
+        .bool_or(y.greater_elem(max_y));
+
+    let invalid_mask_4d = invalid_mask
+        .reshape([batch_size, 1, out_h, out_w])
+        .repeat_dim(1, channels);
+
+    // Fills anything outside the image with solid black
+    out_tensor.mask_fill(invalid_mask_4d, 0.0)
 }
 
 pub fn umeyama(src: Tensor<2>, dst: Tensor<2>) -> Tensor<2> {
