@@ -87,13 +87,13 @@ required-features = ["scrfd-10g", "scrfd-500m"]
 # Recognition examples
 [[example]]
 name = "deepid"
-required-features = ["verify", "deepid"]
+required-features = ["verify", "yunet", "deepid"]
 [[example]]
 name = "adaface"
 required-features = ["verify", "scrfd-10g", "adaface-ir18", "adaface-ir101"]
 [[example]]
 name = "facenet"
-required-features = ["verify", "facenet512"]
+required-features = ["verify", "yunet", "facenet512"]
 [[example]]
 name = "dlib-recognition"
 required-features = ["verify", "dlib-recognition"]
