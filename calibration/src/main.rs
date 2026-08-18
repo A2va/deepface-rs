@@ -1,6 +1,6 @@
 use anyhow::Context;
 use burn::Tensor;
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 
 use deepface::detection::{Detector, FacialAreaRegion, NmsOptions, Yunet};
 use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};

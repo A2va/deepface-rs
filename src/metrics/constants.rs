@@ -42,6 +42,7 @@ impl RecognitionModel {
                 euclidean_l2: 0.321005,
                 angular: 0.0,
             },
+            #[allow(unreachable_patterns)]
             _ => unreachable!("no recognition model enabled"),
         }
     }
@@ -157,6 +158,7 @@ impl RecognitionModel {
                 },
                 DistanceMethod::Angular => todo!("not supported"),
             },
+            #[allow(unreachable_patterns)]
             _ => unreachable!("no recognition model enabled"),
         }
     }

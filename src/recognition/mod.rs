@@ -25,9 +25,8 @@ use crate::{
     ImageToTensor,
 };
 use burn::{
-    nn::interpolate::Interpolate2dConfig,
-    prelude::Tensor,
     tensor::{s, Device, Int},
+    Tensor,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -74,21 +73,6 @@ pub enum NormalizationMethod {
     VGGFace2,
     /// Normalize for the ArcFace model
     ArcFace,
-}
-
-fn resize(
-    tensor: Tensor<3>, // [C, H, W]
-    shape: (u32, u32),
-) -> Tensor<4> {
-    let (target_h, target_w) = (shape.0 as usize, shape.1 as usize);
-
-    let interpolate = Interpolate2dConfig::new()
-        .with_output_size(Some([target_h, target_w]))
-        .init();
-    let resized = interpolate.forward(tensor.unsqueeze::<4>()); // [1, C, H, W]
-
-    assert!(resized.dims() == [1, 3, target_h, target_w]);
-    resized
 }
 
 fn normalize_tensor(tensor: Tensor<4>, norm: NormalizationMethod) -> Tensor<4> {

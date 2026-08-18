@@ -1,5 +1,5 @@
 use burn::Tensor;
-use image::{DynamicImage, GenericImage};
+use image::DynamicImage;
 
 use deepface::detection::{Detector, NmsOptions, Yunet};
 use deepface::metrics::{verify, DistanceMethod};

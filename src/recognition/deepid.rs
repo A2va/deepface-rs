@@ -6,7 +6,7 @@ mod deepid {
     include!(concat!(env!("OUT_DIR"), "/models/recognition/deepid.rs"));
 }
 
-/// DeepID face recognition
+/// DeepID face recognition.
 ///
 /// [Paper](https://openaccess.thecvf.com/content_cvpr_2014/papers/Sun_Deep_Learning_Face_2014_CVPR_paper.pdf)
 pub struct DeepID {
