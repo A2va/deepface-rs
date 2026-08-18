@@ -15,6 +15,7 @@
 //! ```
 
 pub mod detection;
+pub mod landmarks;
 pub mod recognition;
 
 pub mod metrics;

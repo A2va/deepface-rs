@@ -17,7 +17,7 @@ fn embed(img: DynamicImage) -> Tensor<1> {
     let result = results.first().unwrap();
 
     let model: DeepID = DeepID::new();
-    model.embed(&img, *result, None)
+    model.embed(&img, result.clone(), None)
 }
 
 fn main() {

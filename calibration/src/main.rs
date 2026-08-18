@@ -64,7 +64,7 @@ fn embed(img: DynamicImage, detector: &impl Detector, model: &AnyModel) -> Tenso
         },
     );
     let result = results.first().unwrap();
-    model.embed(&img, *result, Some(NormalizationMethod::ZeroOne))
+    model.embed(&img, result.clone(), Some(NormalizationMethod::ZeroOne))
 }
 
 fn generate_distance_csv(model_name: &str) -> Result<(), Box<dyn Error>> {

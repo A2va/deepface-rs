@@ -8,6 +8,7 @@ use super::{
     ResizedDimensions,
 };
 use crate::ImageToTensor;
+use crate::landmarks::ModelKind;
 
 #[cfg(feature = "scrfd-10g")]
 mod scrfd_10g {
@@ -141,26 +142,14 @@ impl<M: ScrfdModel> Detector for Scrfd<M> {
             let h = detection.ymax - y;
 
             let landmark = &lms[i];
-
-            let right_eye = (landmark[0].0 as u32, landmark[0].1 as u32);
-            let left_eye = (landmark[1].0 as u32, landmark[1].1 as u32);
-            let nose = (landmark[2].0 as u32, landmark[2].1 as u32);
-            let right_mouth = (landmark[3].0 as u32, landmark[3].1 as u32);
-            let left_mouth = (landmark[4].0 as u32, landmark[4].1 as u32);
-
             let confidence = detection.confidence.clamp(0.0, 1.0);
             let facial_area = FacialAreaRegion {
                 x: x as u32,
                 y: y as u32,
                 w: w as u32,
                 h: h as u32,
-                left_eye: Some(left_eye),
-                right_eye: Some(right_eye),
-                nose: Some(nose),
-                mouth_right: Some(right_mouth),
-                mouth_left: Some(left_mouth),
                 confidence: Some(confidence),
-                landmarks: Some(*landmark),
+                landmarks: Some(landmark.clone()),
             };
             results.push(facial_area);
         }
@@ -315,14 +304,15 @@ fn postprocess(
             confidence: final_scores_data[i],
         });
 
-        let mut lm: Landmarks = [(0.0, 0.0); 5];
-        for n in 0..5 {
-            lm[n] = (
-                final_lms_data[i * 10 + n * 2],
-                final_lms_data[i * 10 + n * 2 + 1],
-            );
-        }
-        final_landmarks.push(lm);
+        let points: Vec<(f32, f32)> = (0..5)
+            .map(|n| {
+                (
+                    final_lms_data[i * 10 + n * 2],
+                    final_lms_data[i * 10 + n * 2 + 1],
+                )
+            })
+            .collect();
+        final_landmarks.push(Landmarks::new(points, ModelKind::Five));
     }
 
     (final_boxes, final_landmarks)

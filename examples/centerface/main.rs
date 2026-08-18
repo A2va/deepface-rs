@@ -27,7 +27,7 @@ fn draw_rect(
 fn main() {
     let model: CenterFace = CenterFace::new();
 
-    let img = image::open("dataset/img1.jpg").unwrap();
+    let img = image::open("dataset2/26c3d5951bc419c4dc2721ab327d9477.png").unwrap();
 
     let results = model.detect(
         &img,
@@ -54,25 +54,31 @@ fn main() {
         println!("confidence: {:?}", confidence);
     }
 
-    if let Some(right_eye) = result.right_eye {
+    if let Some(left_eye) = result.left_eye() {
+        println!("left_eye: {:?}", left_eye);
+        let pixel = img.get_pixel_mut(left_eye.0, left_eye.1);
+        *pixel = image::Rgb([0, 255, 0]);
+    }
+
+    if let Some(right_eye) = result.right_eye() {
         println!("right_eye: {:?}", right_eye);
         let pixel = img.get_pixel_mut(right_eye.0, right_eye.1);
         *pixel = image::Rgb([0, 255, 0]);
     }
 
-    if let Some(nose) = result.nose {
+    if let Some(nose) = result.nose() {
         println!("nose: {:?}", nose);
         let pixel = img.get_pixel_mut(nose.0, nose.1);
         *pixel = image::Rgb([0, 255, 0]);
     }
 
-    if let Some(mouth_left) = result.mouth_left {
+    if let Some(mouth_left) = result.left_mouth() {
         println!("mouth_left: {:?}", mouth_left);
         let pixel = img.get_pixel_mut(mouth_left.0, mouth_left.1);
         *pixel = image::Rgb([0, 255, 0]);
     }
 
-    if let Some(mouth_right) = result.mouth_right {
+    if let Some(mouth_right) = result.right_mouth() {
         println!("mouth_right: {:?}", mouth_right);
         let pixel = img.get_pixel_mut(mouth_right.0, mouth_right.1);
         *pixel = image::Rgb([0, 255, 0]);

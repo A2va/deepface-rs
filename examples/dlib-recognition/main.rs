@@ -19,7 +19,7 @@ fn embed(img: DynamicImage) -> Tensor<1> {
     let result = results.first().unwrap();
 
     let model: DlibRecognition = DlibRecognition::new(DlibDetectorModel::Hog);
-    model.embed(&img, *result, None)
+    model.embed(&img, result.clone(), None)
 }
 
 fn main() {

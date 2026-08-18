@@ -17,7 +17,7 @@ fn embed(img: DynamicImage) -> Tensor<1> {
     let result = results.first().unwrap();
 
     let model: AdaFaceIR101 = AdaFaceIR101::new();
-    model.embed(&img, *result, None)
+    model.embed(&img, result.clone(), None)
 }
 
 fn main() {

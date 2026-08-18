@@ -20,10 +20,7 @@ pub mod dlib;
 #[cfg(feature = "dlib-recognition")]
 pub use crate::recognition::dlib::DlibRecognition;
 
-use crate::{
-    detection::{FacialAreaRegion, Landmarks},
-    ImageToTensor,
-};
+use crate::{detection::FacialAreaRegion, ImageToTensor};
 use burn::{
     tensor::{s, Device, Int},
     Tensor,
@@ -145,16 +142,19 @@ pub(crate) fn align_face(
     let Some(landmarks) = &face.landmarks else {
         panic!("face_alignment requires sub-pixel landmarks.");
     };
+    let five = landmarks
+        .to_5_points()
+        .expect("landmark model must provide the 5 ArcFace alignment points");
 
     let image_4d = image.unsqueeze::<4>();
-    let (aligned, _) = face_alignment(image_4d, landmarks, shape);
+    let (aligned, _) = face_alignment(image_4d, &five, shape);
 
     aligned
 }
 
 fn face_alignment(
     image: Tensor<4>,
-    landmark: &Landmarks,
+    landmark: &[(f32, f32); 5],
     image_size: (u32, u32),
 ) -> (Tensor<4>, Tensor<2>) {
     let device = image.device();
@@ -177,7 +177,7 @@ fn face_alignment(
 /// The conventional ArcFace order is left first. So left first, then right eye; same for mouth.
 /// The problem is that all the detectors I looked at return the right eye first,
 /// so the order is inverted here in the detection models instead.
-const ARCFACE_REFERENCE: Landmarks = [
+const ARCFACE_REFERENCE: [(f32, f32); 5] = [
     (73.5318, 51.5014), // Right eye
     (38.2946, 51.6963), // Left eye
     (56.0252, 71.7366), // Nose
@@ -187,7 +187,7 @@ const ARCFACE_REFERENCE: Landmarks = [
 
 /// Estimates both the Forward and Inverse transformation matrices.
 fn estimate_norm(
-    landmark: &Landmarks,
+    landmark: &[(f32, f32); 5],
     image_size: (u32, u32),
     device: Device,
 ) -> (Tensor<2>, Tensor<2>) {
@@ -208,7 +208,7 @@ fn estimate_norm(
 }
 
 /// Dynamically generates the target template based on the output size.
-fn generate_alignment_template(image_size: (u32, u32)) -> Landmarks {
+fn generate_alignment_template(image_size: (u32, u32)) -> [(f32, f32); 5] {
     let width = image_size.0 as f32;
     let height = image_size.1 as f32;
 

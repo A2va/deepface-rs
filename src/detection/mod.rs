@@ -44,19 +44,51 @@ pub trait Detector {
         -> Vec<FacialAreaRegion>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct FacialAreaRegion {
     pub x: u32,
     pub y: u32,
     pub w: u32,
     pub h: u32,
-    pub left_eye: Option<(u32, u32)>,
-    pub right_eye: Option<(u32, u32)>,
     pub confidence: Option<f32>,
-    pub nose: Option<(u32, u32)>,
-    pub mouth_right: Option<(u32, u32)>,
-    pub mouth_left: Option<(u32, u32)>,
-    pub(crate) landmarks: Option<Landmarks>,
+    /// Sub-pixel facial landmarks in canonical order. Query semantic regions
+    /// (eye centers, outlines, ...) via [`Landmarks::part`]/[`Landmarks::center`]
+    /// and the ArcFace points via [`Landmarks::to_5_points`].
+    pub landmarks: Option<Landmarks>,
+}
+
+impl FacialAreaRegion {
+    fn center(&self, part: crate::landmarks::FacePart) -> Option<(u32, u32)> {
+        self.landmarks
+            .as_ref()
+            .and_then(|lm| lm.center(part))
+            .map(|(x, y)| (x as u32, y as u32))
+    }
+
+    /// Person's right eye center.
+    pub fn right_eye(&self) -> Option<(u32, u32)> {
+        self.center(crate::landmarks::FacePart::RightEye)
+    }
+
+    /// Person's left eye center.
+    pub fn left_eye(&self) -> Option<(u32, u32)> {
+        self.center(crate::landmarks::FacePart::LeftEye)
+    }
+
+    /// Nose tip.
+    pub fn nose(&self) -> Option<(u32, u32)> {
+        self.center(crate::landmarks::FacePart::NoseTip)
+    }
+
+    /// Person's right mouth corner.
+    pub fn right_mouth(&self) -> Option<(u32, u32)> {
+        self.center(crate::landmarks::FacePart::RightMouth)
+    }
+
+    /// Person's left mouth corner.
+    pub fn left_mouth(&self) -> Option<(u32, u32)> {
+        self.center(crate::landmarks::FacePart::LeftMouth)
+    }
 }
 
 /// Represents resized dimensions and scale factors.
@@ -132,16 +164,8 @@ fn resize_tensor(
     (interpolate.forward(tensor.unsqueeze::<4>()), sizes) // [B, C, H, W]
 }
 
-/// The landmarks are typically ordered as:
-/// Canonical order:
-/// - Right eye
-/// - Left eye
-/// - Nose
-/// - Right mouth corner
-/// - Left mouth corner
-///
-/// Note that the order should be preserved acros all detection.
-pub(crate) type Landmarks = [(f32, f32); 5];
+/// Canonical (5-point) facial landmarks. See [`crate::landmarks::Landmarks`].
+pub use crate::landmarks::Landmarks;
 
 struct BoundingBox {
     pub xmin: f32,
