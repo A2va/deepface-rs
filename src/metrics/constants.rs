@@ -42,6 +42,20 @@ impl RecognitionModel {
                 euclidean_l2: 0.321005,
                 angular: 0.0,
             },
+            #[cfg(feature = "adaface-ir18")]
+            RecognitionModel::AdaFaceIR18 => ModelThreshold {
+                cosine: 0.722152,
+                euclidean: 1.160441,
+                euclidean_l2: 1.160441,
+                angular: 0.401766,
+            },
+            #[cfg(feature = "adaface-ir101")]
+            RecognitionModel::AdaFaceIR101 => ModelThreshold {
+                cosine: 0.710982,
+                euclidean: 1.138921,
+                euclidean_l2: 1.138921,
+                angular: 0.395102,
+            },
             #[allow(unreachable_patterns)]
             _ => unreachable!("no recognition model enabled"),
         }
@@ -157,6 +171,84 @@ impl RecognitionModel {
                     denorm_min_false: 1.727231,
                 },
                 DistanceMethod::Angular => todo!("not supported"),
+            },
+            #[cfg(feature = "adaface-ir18")]
+            RecognitionModel::AdaFaceIR18 => match distance {
+                DistanceMethod::Cosine => ModelConfidence {
+                    w: -7.249017,
+                    b: 2.586678,
+                    normalizer: 1.181916,
+                    denorm_max_true: 83.611532,
+                    denorm_min_true: 32.058240,
+                    denorm_max_false: 13.592328,
+                    denorm_min_false: 0.935598,
+                },
+                DistanceMethod::Euclidean => ModelConfidence {
+                    w: -7.599070,
+                    b: 3.894672,
+                    normalizer: 1.537476,
+                    denorm_max_true: 75.648389,
+                    denorm_min_true: 22.067086,
+                    denorm_max_false: 11.405103,
+                    denorm_min_false: 2.402369,
+                },
+                DistanceMethod::EuclideanL2 => ModelConfidence {
+                    w: -7.599070,
+                    b: 3.894672,
+                    normalizer: 1.537476,
+                    denorm_max_true: 75.648392,
+                    denorm_min_true: 22.067088,
+                    denorm_max_false: 11.405104,
+                    denorm_min_false: 2.402370,
+                },
+                DistanceMethod::Angular => ModelConfidence {
+                    w: -6.971584,
+                    b: 0.846587,
+                    normalizer: 0.558230,
+                    denorm_max_true: 39.894881,
+                    denorm_min_true: 16.952788,
+                    denorm_max_false: 11.742187,
+                    denorm_min_false: 4.542691,
+                },
+            },
+            #[cfg(feature = "adaface-ir101")]
+            RecognitionModel::AdaFaceIR101 => match distance {
+                DistanceMethod::Cosine => ModelConfidence {
+                    w: -7.019272,
+                    b: 2.534465,
+                    normalizer: 1.130832,
+                    denorm_max_true: 84.652883,
+                    denorm_min_true: 34.088487,
+                    denorm_max_false: 7.577590,
+                    denorm_min_false: 1.115327,
+                },
+                DistanceMethod::Euclidean => ModelConfidence {
+                    w: -7.553636,
+                    b: 3.872974,
+                    normalizer: 1.503883,
+                    denorm_max_true: 78.253007,
+                    denorm_min_true: 22.753692,
+                    denorm_max_false: 7.412923,
+                    denorm_min_false: 2.458654,
+                },
+                DistanceMethod::EuclideanL2 => ModelConfidence {
+                    w: -7.553636,
+                    b: 3.872974,
+                    normalizer: 1.503883,
+                    denorm_max_true: 78.253009,
+                    denorm_min_true: 22.753694,
+                    denorm_max_false: 7.412924,
+                    denorm_min_false: 2.458655,
+                },
+                DistanceMethod::Angular => ModelConfidence {
+                    w: -7.327868,
+                    b: 0.969183,
+                    normalizer: 0.541765,
+                    denorm_max_true: 43.818310,
+                    denorm_min_true: 18.058241,
+                    denorm_max_false: 9.518956,
+                    denorm_min_false: 4.738981,
+                },
             },
             #[allow(unreachable_patterns)]
             _ => unreachable!("no recognition model enabled"),

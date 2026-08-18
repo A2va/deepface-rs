@@ -37,6 +37,10 @@ pub enum RecognitionModel {
     FaceNet512,
     #[cfg(feature = "dlib-recognition")]
     DlibRecognition,
+    #[cfg(feature = "adaface-ir18")]
+    AdaFaceIR18,
+    #[cfg(feature = "adaface-ir101")]
+    AdaFaceIR101,
 }
 
 /// Internal trait to handle recognizer metadata.

@@ -3,7 +3,9 @@ use burn::Tensor;
 use image::DynamicImage;
 
 use deepface::detection::{Detector, FacialAreaRegion, NmsOptions, Yunet};
-use deepface::recognition::{DeepID, DlibRecognition, FaceNet512, Recognizer};
+use deepface::recognition::{
+    AdaFaceIR101, AdaFaceIR18, DeepID, DlibRecognition, FaceNet512, Recognizer,
+};
 
 use deepface::metrics::{distance, DistanceMethod};
 use deepface::recognition::NormalizationMethod;
@@ -19,6 +21,8 @@ enum AnyModel {
     DeepID(DeepID),
     FaceNet512(FaceNet512),
     DlibRecognition(DlibRecognition),
+    AdaFaceIR18(AdaFaceIR18),
+    AdaFaceIR101(AdaFaceIR101),
 }
 
 impl Recognizer for AnyModel {
@@ -32,6 +36,8 @@ impl Recognizer for AnyModel {
             AnyModel::DeepID(m) => m.embed(input, face, norm),
             AnyModel::FaceNet512(m) => m.embed(input, face, norm),
             AnyModel::DlibRecognition(m) => m.embed(input, face, norm),
+            AnyModel::AdaFaceIR18(m) => m.embed(input, face, norm),
+            AnyModel::AdaFaceIR101(m) => m.embed(input, face, norm),
         }
     }
 }
@@ -43,6 +49,8 @@ fn get_model(name: &str) -> AnyModel {
         "dlib-recognition" => {
             AnyModel::DlibRecognition(DlibRecognition::new(DlibDetectorModel::Cnn))
         }
+        "adaface-ir18" => AnyModel::AdaFaceIR18(AdaFaceIR18::new()),
+        "adaface-ir101" => AnyModel::AdaFaceIR101(AdaFaceIR101::new()),
         _ => panic!("Unknown model {name}"),
     }
 }
