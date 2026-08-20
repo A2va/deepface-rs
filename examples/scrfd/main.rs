@@ -21,7 +21,7 @@ fn draw_rect(image: &mut RgbImage, x1: u32, x2: u32, y1: u32, y2: u32, color: &[
 fn main() {
     let model: Scrfd10g = Scrfd10g::new();
 
-    let img = image::open("dataset2/cun_face2.jpg").unwrap();
+    let img = image::open("dataset/img1.jpg").unwrap();
 
     let results = model.detect(
         &img,
@@ -80,3 +80,4 @@ fn main() {
 
     img.save("output_scrfd.jpg").unwrap();
 }
+

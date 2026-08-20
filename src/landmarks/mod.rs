@@ -6,9 +6,7 @@
 //! `raw index → canonical index` table ([`ModelKind`]).
 //!
 //! Consumers never need to know a model's exact indices: [`Landmarks::part`]
-//! and [`Landmarks::center`] query semantic regions ([`FacePart`]) best-effort,
-//! [`Landmarks::to_5_points`] always yields the ArcFace alignment points, and
-//! [`Landmarks::canonical_indices`] feeds head-pose (PYR) estimation.
+//! and [`Landmarks::center`] query semantic regions ([`FacePart`]) best-effort.
 
 use crate::ImageToTensor;
 
@@ -51,8 +49,7 @@ impl FacePart {
             FacePart::NoseBridge => &[168, 197, 5, 4, 98, 97, 2, 326, 327],
             FacePart::NoseTip => &[4],
             FacePart::Jaw => &[
-                162, 93, 132, 58, 172, 136, 150, 149, 152, 378, 379, 365, 397, 288, 361, 323,
-                389,
+                162, 93, 132, 58, 172, 136, 150, 149, 152, 378, 379, 365, 397, 288, 361, 323, 389,
             ],
             FacePart::Mouth => &[61, 39, 37, 0, 267, 269, 291, 405, 314, 17, 84, 181],
             FacePart::MouthInner => &[78, 82, 13, 312, 308, 317, 14, 87],
@@ -68,7 +65,7 @@ impl FacePart {
 pub enum ModelKind {
     /// The 5-point canonical output shared by SCRFD / YuNet / CenterFace.
     Five,
-    /// Dlib's 68-point model (integer coordinates).
+    /// Dlib's 68-point model.
     #[cfg(feature = "dlib-detection")]
     Dlib68,
 }
@@ -166,15 +163,14 @@ impl Landmarks {
     /// padding (20% of the largest side). Confidence is unknown (`None`).
     pub fn to_facial_area_region(&self) -> crate::detection::FacialAreaRegion {
         let (min_x, min_y, max_x, max_y) = self.bounds();
-        let padding =
-            ((max_x - min_x).max(max_y - min_y) * Self::DEFAULT_PADDING_RATIO) as u32;
+        let padding = ((max_x - min_x).max(max_y - min_y) * Self::DEFAULT_PADDING_RATIO) as u32;
         self.to_facial_area_region_with_padding(padding)
     }
 
     /// Convert these landmarks into a [`crate::detection::FacialAreaRegion`],
     /// deriving the bounding box from the points and expanding it by `padding`
     /// on each side. Confidence is unknown (`None`).
-    pub fn to_facial_area_region_with_padding(
+    fn to_facial_area_region_with_padding(
         &self,
         padding: u32,
     ) -> crate::detection::FacialAreaRegion {
